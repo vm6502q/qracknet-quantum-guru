@@ -1,0 +1,296 @@
+openapi: 3.0.0
+info:
+  title: QrackNet API
+  description: A RESTful API to expose Qrack library (https://github.com/unitaryfund/qrack) simulator functionality to users via the web
+  version: 0.1.0
+
+servers:
+  - url: https://qrack.net/api
+    description: Main (production) server
+
+paths:
+  /register:
+    post:
+      summary: Registers a new account, with username and password
+      description: If the request is valid and the username is not in use, the route creates a new account and sets an authentication cookie
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                affiliation:
+                  type: string
+                name:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+                passwordConfirm:
+                  type: string
+      responses:
+        '200':    # status code
+          description: Request status message, user object, and session JWT
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      username:
+                        type: string
+                      usernameNormal:
+                        type: string
+                      affiliation:
+                        type: string
+                      name:
+                        type: string
+                      email:
+                        type: string
+                      createdAt:
+                        type: string
+                      updatedAt:
+                        type: string
+                  token:
+                    type: string
+        '400':
+          description: Username already exists / Password does not match confirmation / Invalid request schema
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+  /login:
+    put:
+      summary: Accepts username and password and sets an authentication cookie if they match a user account on file
+      description: Accepts username and password and sets an authentication cookie if they match a user account on file
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':    # status code
+          description: Request status message, user object, and session JWT
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      username:
+                        type: string
+                      usernameNormal:
+                        type: string
+                      affiliation:
+                        type: string
+                      name:
+                        type: string
+                      email:
+                        type: string
+                      createdAt:
+                        type: string
+                      updatedAt:
+                        type: string
+                  token:
+                    type: string
+        '400':
+          description: User not found / Password incorrect / Invalid request schema
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+  /logout:
+    get:
+      summary: Logs out of the current session by disposing the authentication cookie
+      description: Logs out of the current session by disposing the authentication cookie
+      operationId: logoutUser
+      responses:
+        '200':    # status code
+          description: Logout success message
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '401':    # status code
+          description: No session cookie was held, upon API request
+
+  /user/password:
+    post:
+      summary: Change personal user account password
+      description: If the session cookie is set and valid, and the supplied password matches the password hash on record, then update this user's password and refresh the session cookie
+      operationId: changeUserPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                oldPassword:
+                  type: string
+                password:
+                  type: string
+                passwordConfirm:
+                  type: string
+      responses:
+        '200':    # status code
+          description: Request status message, user object, and session JWT
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      username:
+                        type: string
+                      usernameNormal:
+                        type: string
+                      affiliation:
+                        type: string
+                      name:
+                        type: string
+                      email:
+                        type: string
+                      createdAt:
+                        type: string
+                      updatedAt:
+                        type: string
+                  token:
+                    type: string
+        '400':
+          description: User not found / Password incorrect / Invalid request schema
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+  /qrack:
+    post:
+      summary: Dispatches a QrackNet (JSON) script
+      description: Dispatches a JSON "script" according to definition at https://github.com/vm6502q/qrack.net/blob/main/api/README.md
+      operationId: dispatchJobForUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                program:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                       name:
+                         type: string
+                       parameters:
+                         type: array
+                         items:
+                           oneOf:
+                             - type: string
+                             - type: boolean
+                             - type: number
+                             - type: array
+                               items:
+                                 type: number
+      responses:
+        '200':    # status code
+          description: Created new job for user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: 
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      userId:
+                        type: integer
+                      jobStatusTypeId:
+                        type: integer
+                      statusMessage:
+                        type: string
+                      updatedAt:
+                        type: string
+                      createdAt:
+                        type: string
+
+  /qrack/{jobId}:
+    get:
+      summary: Returns the status and "output space" of the job
+      description: Returns the status and global "output space" object of the job. (All methods that return any output write it to the job-specific "output space," with a name specified by the user.)
+      operationId: getJobForUser
+      responses:
+        '200':    # status code
+          description: Reports whether the job is running, successfully completed, or failed, and gives an "output" object defined by the user's script for the job.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                          name:
+                            type: string
+                          message:
+                            type: string
+                      output:
+                        type: object
