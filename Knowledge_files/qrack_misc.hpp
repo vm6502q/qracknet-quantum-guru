@@ -1,8 +1,8 @@
 //////////////////////////////////////////////////////////////////////////////////////
 //
-// (C) Daniel Strano and the Qrack contributors 2017-2023. All rights reserved.
+// (C) Daniel Strano and the Qrack contributors 2017-2024. All rights reserved.
 //
-// This is a multithreaded, universal quantum register simulation, allowing
+// Qrack is a multithreaded, universal quantum register simulation, allowing
 // (nonphysical) register cloning and direct measurement of probability and
 // phase, to leverage what advantages classical emulation of qubits can have.
 //
@@ -18,6 +18,35 @@
 #include <algorithm>
 
 namespace Qrack {
+/**
+ * Enumerated list of Pauli bases
+ */
+enum Pauli {
+    /// Pauli Identity operator. Corresponds to Q# constant "PauliI."
+    PauliI = 0,
+    /// Pauli X operator. Corresponds to Q# constant "PauliX."
+    PauliX = 1,
+    /// Pauli Y operator. Corresponds to Q# constant "PauliY."
+    PauliY = 3,
+    /// Pauli Z operator. Corresponds to Q# constant "PauliZ."
+    PauliZ = 2
+};
+
+/**
+ * Enumerated list of activation functions
+ */
+enum QNeuronActivationFn {
+    /// Default
+    Sigmoid = 0,
+    /// Rectified linear
+    ReLU = 1,
+    /// Gaussian linear
+    GeLU = 2,
+    /// Version of (default) "Sigmoid" with tunable sharpness
+    Generalized_Logistic = 3,
+    /// Leaky rectified linear
+    Leaky_ReLU = 4
+};
 
 class QNeuron;
 typedef std::shared_ptr<QNeuron> QNeuronPtr;
@@ -353,4 +382,4 @@ protected:
         return minusProb;
     }
 };
-} // namespace Qrack
+} // namespace
