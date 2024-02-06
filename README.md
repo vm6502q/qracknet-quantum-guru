@@ -11,3 +11,5 @@
     - (C++ Qrack) [pauli.hpp](https://github.com/unitaryfund/qrack/blob/main/include/common/pauli.hpp)
     - (C++ Qrack) [qneuron_activation_function.hpp](https://github.com/unitaryfund/qrack/blob/main/include/common/qneuron_activation_function.hpp)
     - (C++ Qrack) [qneuron.hpp](https://github.com/unitaryfund/qrack/blob/main/include/qneuron.hpp)
+
+**All sources are Daniel Strano's authorship, with assistance from ChatGPT, or public domain.**
