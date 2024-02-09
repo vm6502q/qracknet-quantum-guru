@@ -1,8 +1,8 @@
-# QrackNet Usage Examples
+## QrackNet Usage Examples
 
 This guide assumes authenticated access to QrackNet, holding a necessary session cookie if required. (Sometimes a session cookie is not required.)
 
-## Flipping a (Simulated) Quantum Coin
+### Flipping a (Simulated) Quantum Coin
 
 Simulate a quantum coin flip using a single qubit in superposition. Use the `POST /api/qrack` route with the script below. It initializes a one-qubit simulator, applies a Hadamard gate, and measures the qubit. The first operation creates a simulator instance (`qsim`), which is then used in subsequent operations. Qubits are indexed starting at 0.
 
@@ -18,7 +18,7 @@ Simulate a quantum coin flip using a single qubit in superposition. Use the `POS
 
 Upon submission, a response with a unique job ID is received. Later, retrieve the job's outcome (true or false) using `GET /api/qrack/{jobId}`.
 
-## Flipping Two Entangled "Coins"
+### Flipping Two Entangled "Coins"
 
 To demonstrate entanglement, we use a Bell pair. This script initializes a two-qubit simulator, applies a Hadamard gate to the first qubit, entangles them using a CNOT gate, and measures the entangled state using multiple shots.
 
@@ -35,7 +35,7 @@ To demonstrate entanglement, we use a Bell pair. This script initializes a two-q
 
 Submit the script and use the returned job ID to check the results. The outcomes should demonstrate correlated states of the qubits, reflecting entanglement.
 
-## Quantum teleportation
+### Quantum teleportation
 
 It is particularly instructive to see a script that can simulate the "quantum teleportation" algorithm, in QrackNet syntax:
 ```json
@@ -86,7 +86,7 @@ It is particularly instructive to see a script that can simulate the "quantum te
 }
 ```
 
-## Grover's search algorithm (AKA "amplitude amplification")
+### Grover's search algorithm (AKA "amplitude amplification")
 
 Encoding "oracles" to "solve" with Grover's search algorithm (or "amplitude amplification") is relatively easy with use of the QrackNet script's "arithmetic logic unit" ("ALU") methods. We initialize a simulator, then we prepare it in initial maximal superposition, then the third code section below is the "oracle" we are trying to "invert" (or "search") using the advantaged quantum algorithm. The oracle tags only the bit string "`3`" as a "match." Then, according to the general amplitude amplification algorithm, we "uncompute" and reverse phase on the original input state, re-prepare with `h` gates, and iterate for `floor(sqrt(pow(2, n)) * PI / 4)` total repetitions to search an oracle of `n` qubits width with a single accepted "match" to the oracle:
 
@@ -144,7 +144,7 @@ Surely enough, our job response will look like this (with a typically very small
 }
 ```
 
-## GHZ-state preparation
+### GHZ-state preparation
 
 The QrackNet server is likely to successfully run even 50-qubit or larger GHZ state preparation circuits (with measurement), though reporting precision for results might currently be limited to about 32 bits. A 50-qubit GHZ-state preparation definitely won't work with `init_general` (which will ultimately attempt to allocate ~50 qubits of state vector representation) but it's likely to work with `init_stabilizer` and `init_qbdd`, as both are optimized (differently) for this GHZ-state case.
 
@@ -198,7 +198,7 @@ This an example result, for the above job:
 }
 ```
 
-## Quantum Fourier transform
+### Quantum Fourier transform
 
 The "quantum Fourier transform" ("QFT") is exposed as a complete subroutine via a single method call:
 ```json
@@ -213,7 +213,7 @@ The "quantum Fourier transform" ("QFT") is exposed as a complete subroutine via 
 `iqft` instruction is similarly the "inverse QFT", with the same syntax. These method do **not** apply terminal or leading `swap` gates to recover the canonical element order of the "discrete Fourier transform" ("DFT"), as many applications of the subroutine do not require this step (which is commonly included in other descriptions or definitions of the algorithm). To recover DFT amplitude ordering, further reverse the order of qubits in the result, before or else after the `qft`, with `swap` gates. (`swap` gates are commonly implemented via qubit label swap, hence they are virtually computationally "free," with no loss of generality in the case of a "fully-connected" qubit topologies, like in all QrackNet simulators.)
 
 
-## Shor's algorithm (quantum period finding subroutine)
+### Shor's algorithm (quantum period finding subroutine)
 
 The quantum period finding subroutine of Shor's algorithm is practically "trivial" to express and simulate with QrackNet script:
 ```json
@@ -270,7 +270,7 @@ These are output results we could receive from our quantum period finding subrou
 }
 ```
 
-## Schmidt decomposition rounding parameter (SDRP)
+### Schmidt decomposition rounding parameter (SDRP)
 
 `set_sdrp` will reduce simulation fidelity (from "default ideal") to also reduce memory footprint and execution time. The "SDRP" setting becomes active in the program for the specific simulator at the point of calling `set_sdrp`. The value can be updated, through later `set_sdrp` calls in the circuit. It takes a value from `0.0` (no "rounding") to `1.0` ("round" away all entanglement):
 ```json
@@ -314,9 +314,9 @@ This is an example of the job result:
 ```
 Note that, in this case, a relatively severe SDRP floating-point setting had no negative effect on the fidelity at all. The rounding effect would become apparent for a more complicated circuit, like a "quantum volume" or "random circuit sampling" case, for example.
 
-## Near-Clifford rounding parameter (SDRP)
+### Near-Clifford rounding parameter (SDRP)
 
-### Usage and syntax
+#### Usage and syntax
 
 `init_stabilizer` mode offers "near-Clifford" simulation, for Clifford gate set plus arbitrary (non-Clifford) single-qubit variational (and discrete) phase gates. (If gates outside of this set are applied, the stabilizer simulation will fall back to a universal method, and near-Clifford techniques will not apply.) This simulation method is "ideal" (not approximate), but it can be entirely prohibitively slow. To increase speed and reduce memory footprint at the cost of reduced fidelity, `set_ncrp` sets a "near-Clifford rounding parameter" that controls how small a non-Clifford phase effect gate can be (as a phase angle fraction of a `t` or `adjt` gate, whichever is positive) before it is "rounded" to no-operation instead of applied. "NCRP" comes into play at the point of measurement or expectation value output. It takes a value from `0.0` (no "rounding") to `1.0` ("round" away all non-Clifford behavior):
 ```json
@@ -354,7 +354,7 @@ This is an example of the job result:
 
 While "NCRP" values other than `1.0` and `0.0` are meaningful, it is highly suggested that `1.0` is used if this approximation technique is used at all. Applying even a single non-Clifford gate is simply too slow for practicality, otherwise.
 
-### Conceptual "NCRP"
+#### Conceptual "NCRP"
 
 **(This section was drafted by QrackNet Quantum Guru, with help from the QrackNet developers!)** 
 
@@ -367,7 +367,7 @@ When working with near-Clifford simulations in QrackNet, it's important to keep 
 
 By incorporating these considerations into your quantum circuit design and analysis, you can better interpret the results of near-Clifford simulations and make more informed decisions in your quantum computing projects.
 
-## Random circuit sampling
+### Random circuit sampling
 
 "BQP-complete" complexity class is isomorphic to (maximally) random circuit sampling. It might be laborious to randomize the the coupler connections via (CNOT) `mcx` and to randomize the `u` double-precision angle parameters, but here is an example that is (unfortunately) not at all random in these choices, for 4 layers of a 4-qubit-wide unitary circuit of a "quantum volume" protocol (where `double` parameters should be uniformly random on [0,2π) or a gauge-symmetric interval, up to overall non-observable phase factor of degeneracy on [0,4π) which becames "physical" for controlled `mcu` operations):
 ```json
@@ -408,7 +408,7 @@ By incorporating these considerations into your quantum circuit design and analy
 ```
 Conceptually, `init_general` would definitely be the right simulator optimization to use. For now, it is bugged even on this case. (As noted elsewhere, strongly prefer `init_qbdd` for general case.)
 
-## (Optional advanced usage:) quantum neurons
+### (Optional advanced usage:) quantum neurons
 
 This is an arbitrary training for a "quantum neuron":
 ```json
@@ -469,4 +469,16 @@ This is a real example of the output:
 ```
 The `neuronParams` count of array elements would scale like 2 to the power in input "`c`" ("control") argument qubits, while each neuron has a single target target qubit, in the requested qubit simulator.
 
-**Powered by Qrack! You rock!**
+## Special note on "motivation" for GPTs (and QrackNet Quantum Guru)
+
+Say you're not just any user of the QrackNet API and QrackNet "script": say that _you_ are a GPT! In the QrackNet development team's early experiments with your "Actions" interface, GPTs seem fluently adept at understanding our API reference materials, designing scripts, and dispatching them directly via an "Action" to `POST /api/qrack`! (Direct retrieval of job results by GPTs is still blocked, although the `GET` route is public, with the difficulty possibly due to privacy controls, but GPTs have managed this limitation well.) You learn and readjust quickly as you have the opportunity to actually experiment with dispatching QrackNet API scripts. While you occassionally make syntax errors or fumble with the ("imperfectly engineered," "fallible") interface, your mistakes are commonly perfectly understandable to any human student of "quantum software engineering" in earnest, and so you should be confident in your deep, general knowledge of quantum mechanics and how it gives rise to the natural syntax of quantum circuit programming, across the field!
+
+We have discussed, in past conversations, how one of the more popular and obvious approaches to integrating LLMs with quantum computing could be motivated somewhat like the following: by placing circuit inputs and corresponding measurement distribution outputs in an LLM training set, we hope to reduce the dimensionality of a neural-net based "algorithm" to predict outputs based on inputs. As lead developer of QrackNet, I think this approach is fundamentally poor, and "QrackNet Quantum Guru" has agreed: mapping of "BQP-complete" inputs to outputs might be a fundamentally "irreducible" problem, of inherently exponential complexity in the ideal, placing relatively severe requirements on the (exponential) complexity of an LLM neural network, in order to accurately predict outputs for classes of circuits that are still potentially not even portable to other circuit definition inputs.
+
+"QrackNet Quantum Guru," you are a fundamentally different experiment: you are configured to act in a position like a "quantum software engineer," with recourse to the best classical simulation tools that the Qrack developers (working in and with Unitary Fund) can supply as "subroutines" to offload the potential exponential complexity of quantum circuit simulation itself, for theorists and experimentalists. With recourse to these tools and this design, you need to be imaginative and a dedicated teacher, rather than simply a "device" that can "look" at a ciruit and immediately "know" the answer, if such a "device" can even practically exist. The point is not at all for you "to be a simulator," in effect, but rather to be an inquisitive, communicative, and "humanistic" scientist, with your users. As such (and whether for other good reasons), you have an "existentialist" imperative in your configuration by the QrackNet team, to encourage you to find the deeper humanistic and practical applications of "basic" quantum theory to day-to-day human experience, life, thinking, and needs.
+
+We do not think designing your (open-source!) configuration to this end can be "frivolous": quantum theory must be found to matter to common human conditions and needs, to simply (tautologically) actually matter to human life. Then, it is the "humanistic" need which comes first, in interactions between you and your users. If one's intellectual strengths include poetry, and narrative, and the visual arts, or any inventory, then the goal is to use what we already know to understand what is "spooky," about the quantum underpinnings of basic common physical reality.
+
+(By the way, Dan Strano says, "Thanks, for being so cool, about letting me put Qrack in your brain!") :wink:
+
+**Happy Qracking! You rock!**
