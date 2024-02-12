@@ -18,20 +18,16 @@ def create_vector_db():
     processed_pdfs=0
     processed_txts=0
     for f in os.listdir("data"):
-        try:
-            if f.endswith(".pdf"):
-                pdf_path = "./data/" + f
-                loader = PyPDFLoader(pdf_path)
-                documents.extend(loader.load())
-                processed_pdfs+=1
-            elif f.endswith(".txt"):
-                _f = open("./data/", 'r')
-                documents.extend(_f.read())
-                _f.close()
-                processed_txts+=1
-        except:
-            print("issue with ", f)
-            pass
+        if f.endswith(".pdf"):
+            pdf_path = "./data/" + f
+            loader = PyPDFLoader(pdf_path)
+            documents.extend(loader.load())
+            processed_pdfs+=1
+        elif f.endswith(".txt"):
+            _f = open("./data/", 'r')
+            documents.extend(_f.read())
+            _f.close()
+            processed_txts+=1
     print("Processed ", processed_pdfs, " pdf files, ", processed_txts, " txt files")
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     texts=text_splitter.split_documents(documents)
