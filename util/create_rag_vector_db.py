@@ -25,7 +25,9 @@ def create_vector_db():
                 documents.extend(loader.load())
                 processed_pdfs+=1
             elif f.endswith(".txt"):
-                documents.extend(open('./data/', 'r').read())
+                _f = open('./data/', 'r')
+                documents.extend(_f.read())
+                _f.close()
                 processed_txts+=1
         except:
             print("issue with ", f)
