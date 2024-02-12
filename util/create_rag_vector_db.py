@@ -20,7 +20,7 @@ def create_vector_db():
     for f in os.listdir("data"):
         try:
             if f.endswith(".pdf"):
-                pdf_path = ''./data/'' + f
+                pdf_path = './data/' + f
                 loader = PyPDFLoader(pdf_path)
                 documents.extend(loader.load())
                 processed_pdfs+=1
@@ -30,7 +30,7 @@ def create_vector_db():
         except:
             print("issue with ", f)
             pass
-    print("Processed ", processed_pdfs, " pdf files, " processed_txts, " txt files")
+    print("Processed ", processed_pdfs, " pdf files, ", processed_txts, " txt files")
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     texts=text_splitter.split_documents(documents)
     vectorstore = Chroma.from_documents(documents=texts, embedding=GPT4AllEmbeddings(),persist_directory=DB_PATH)
