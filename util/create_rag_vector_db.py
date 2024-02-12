@@ -11,6 +11,7 @@ DB_PATH = "vectorstores/db/"
 
 def create_vector_db():
     documents=[]
+    texts=[]
     processed_pdfs=0
     processed_txts=0
     for f in os.listdir("data"):
@@ -21,11 +22,14 @@ def create_vector_db():
             processed_pdfs+=1
         elif f.endswith(".txt"):
             _f = open("./data/" + f, 'r')
-            documents.extend(_f.read())
+            texts.extend(_f.read())
             _f.close()
             processed_txts+=1
     print("Processed ", processed_pdfs, " pdf files, ", processed_txts, " txt files")
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+    if processed_txts > 0:
+        texts = text_splitter.create_documents(texts)
+        documents += texts
     texts=text_splitter.split_documents(documents)
     vectorstore = Chroma.from_documents(documents=texts, embedding=OllamaEmbeddings(),persist_directory=DB_PATH)
     vectorstore.persist()
