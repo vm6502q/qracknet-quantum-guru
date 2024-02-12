@@ -6,7 +6,7 @@ from langchain.document_loaders import PyPDFLoader
 
 from langchain.document_loaders import UnstructuredHTMLLoader, BSHTMLLoader
 from langchain.vectorstores import Chroma
-from langchain.embeddings import GPT4AllEmbeddings
+from langchain_community.embeddings import LlamaCppEmbeddings
 from langchain.embeddings import OllamaEmbeddings
 
 import os
@@ -35,7 +35,7 @@ def create_vector_db():
     print("Processed ", processed_pdfs, " pdf files, ", processed_txts, " txt files")
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     texts=text_splitter.split_documents(documents)
-    vectorstore = Chroma.from_documents(documents=texts, embedding=GPT4AllEmbeddings(),persist_directory=DB_PATH)
+    vectorstore = Chroma.from_documents(documents=texts, embedding=LlamaCppEmbeddings(),persist_directory=DB_PATH)
     vectorstore.persist()
 
 if __name__=="__main__":
