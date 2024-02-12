@@ -1,13 +1,13 @@
 # See https://plainenglish.io/community/super-quick-retrieval-augmented-generation-using-ollama-6078c1
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.document_loaders import PyPDFLoader, DirectoryLoader
-from langchain.document_loaders import PyPDFLoader
+from langchain_community.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader
+from langchain_community.document_loaders import PyPDFLoader
 
-from langchain.document_loaders import UnstructuredHTMLLoader, BSHTMLLoader
-from langchain.vectorstores import Chroma
-from langchain.embeddings.ollama import OllamaEmbeddings
-from langchain.embeddings import OllamaEmbeddings
+from langchain_community.document_loaders import UnstructuredHTMLLoader, BSHTMLLoader
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings.ollama import OllamaEmbeddings
+from langchain_community.embeddings import OllamaEmbeddings
 
 import os
 
