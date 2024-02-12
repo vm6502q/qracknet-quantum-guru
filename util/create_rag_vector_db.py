@@ -6,7 +6,7 @@ from langchain.document_loaders import PyPDFLoader
 
 from langchain.document_loaders import UnstructuredHTMLLoader, BSHTMLLoader
 from langchain.vectorstores import Chroma
-from langchain_community.embeddings import LlamaCppEmbeddings
+from langchain.embeddings.ollama import OllamaEmbeddings
 from langchain.embeddings import OllamaEmbeddings
 
 import os
@@ -20,12 +20,12 @@ def create_vector_db():
     for f in os.listdir("data"):
         try:
             if f.endswith(".pdf"):
-                pdf_path = './data/' + f
+                pdf_path = "./data/" + f
                 loader = PyPDFLoader(pdf_path)
                 documents.extend(loader.load())
                 processed_pdfs+=1
             elif f.endswith(".txt"):
-                _f = open('./data/', 'r')
+                _f = open("./data/", 'r')
                 documents.extend(_f.read())
                 _f.close()
                 processed_txts+=1
@@ -35,7 +35,7 @@ def create_vector_db():
     print("Processed ", processed_pdfs, " pdf files, ", processed_txts, " txt files")
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
     texts=text_splitter.split_documents(documents)
-    vectorstore = Chroma.from_documents(documents=texts, embedding=LlamaCppEmbeddings(),persist_directory=DB_PATH)
+    vectorstore = Chroma.from_documents(documents=texts, embedding=OllamaEmbeddings(),persist_directory=DB_PATH)
     vectorstore.persist()
 
 if __name__=="__main__":
