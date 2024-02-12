@@ -20,7 +20,7 @@ def create_vector_db():
             loader = PyPDFLoader(pdf_path)
             documents.extend(loader.load())
             processed_pdfs+=1
-        elif f.endswith(".txt"):
+        elif f.endswith(".txt") or f.endswith(".md") or f.endswith(".hpp") or f.endswith(".cpp"):
             _f = open("./data/" + f, 'r')
             texts.extend(_f.read())
             _f.close()
