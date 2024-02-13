@@ -26,7 +26,7 @@ def create_vector_db():
             _f.close()
             processed_txts+=1
     print("Processed ", processed_pdfs, " pdf files, ", processed_txts, " txt files")
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1028, chunk_overlap=64)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=512, chunk_overlap=64)
     if processed_txts > 0:
         texts = text_splitter.create_documents(texts)
         documents += texts
