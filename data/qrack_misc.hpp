@@ -7,7 +7,7 @@
 // phase, to leverage what advantages classical emulation of qubits can have.
 //
 // This "qrack_misc.hpp" file is actually a curated pseudo-code text compendium of
-// major algorithms in Qrack, not a compilable file. It is meant highlight both 
+// major algorithms in Qrack, not a compilable file. It is meant highlight both
 // novel solutions and new pareto-efficient algorithms over prior state-of-the-art.
 //
 // Licensed under the GNU Lesser General Public License V3.
@@ -1736,6 +1736,67 @@ real1_f QEngineCPU::SumSqrDiff(QEngineCPUPtr toCompare)
     }
 
     return ONE_R1_F - clampProb((real1_f)norm(totInner));
+}
+
+/**
+ * From "quantum binary decision diagrams" (QBDD) or "quantum binary decision trees" (`QBdt`, hence),
+ * the "separability problem" if effectively solved _"structurally"_ for all potential bipartite
+ * boundaries between an aligned low-index qubit subsytem and an aligned high-index qubit subsystem.
+ * Empirically, this check can take on order of just a millisecond for a large composite system of
+ * GHZ subsystems.
+ */
+bool QBdt::IsSeparable(bitLenInt start)
+{
+    if (!start || (start >= qubitCount)) {
+        throw std::invalid_argument(
+            "QBdt::IsSeparable() start parameter must be at least 1 and less than the QBdt qubit width!");
+    }
+
+    // If the tree has been fully reduced, this should ALWAYS be the same for ALL branches
+    // (that have nonzero amplitude), if-and-only-if the state is separable.
+    QBdtNodeInterfacePtr subsystemPtr = NULL;
+
+    const bitCapInt qPower = pow2(start);
+    bool result = true;
+
+    par_for_qbdt(
+        qPower, start,
+        [this, start, &subsystemPtr, &result](const bitCapInt& i) {
+            QBdtNodeInterfacePtr leaf = root;
+            for (bitLenInt j = 0U; j < start; ++j) {
+                leaf = leaf->branches[SelectBit(i, start - (j + 1U))];
+                if (!leaf) {
+                    // The immediate parent of "leaf" has 0 amplitude.
+                    return (bitCapInt)(pow2(start - j) - ONE_BCI);
+                }
+            }
+
+            if (!leaf->branches[0U] || !leaf->branches[1U]) {
+                // "leaf" is a 0-amplitude branch.
+                return ZERO_BCI;
+            }
+
+            // "leaf" is nonzero.
+            // Every such instance must be identical.
+
+            if (!subsystemPtr) {
+                // Even if another thread "clobbers" this assignment,
+                // then the equality check afterward will fail.
+                subsystemPtr = leaf;
+            }
+
+            if (subsystemPtr != leaf) {
+                // There are at least two distinct possible subsystem states for the "high-index" subsystem,
+                // depending specifically on which dimension of the "low-index" subsystem we're inspecting.
+                result = false;
+                return (bitCapInt)(pow2(start) - ONE_BCI);
+            }
+
+            return ZERO_BCI;
+        },
+        false);
+
+    return result;
 }
 
 } // namespace Qrack
