@@ -467,7 +467,7 @@ struct QCircuitGate {
      * Identity gate constructor
      */
     QCircuitGate()
-        : target(0)
+        : target(0U)
         , payloads()
         , controls()
 
@@ -493,8 +493,8 @@ struct QCircuitGate {
     QCircuitGate(bitLenInt trgt, const complex matrix[])
         : target(trgt)
     {
-        payloads[ZERO_BCI] = std::shared_ptr<complex>(new complex[4], std::default_delete<complex[]>());
-        std::copy(matrix, matrix + 4, payloads[ZERO_BCI].get());
+        payloads[ZERO_BCI] = std::shared_ptr<complex>(new complex[4U], std::default_delete<complex[]>());
+        std::copy(matrix, matrix + 4U, payloads[ZERO_BCI].get());
     }
 
     /**
@@ -505,8 +505,8 @@ struct QCircuitGate {
         , controls(ctrls)
     {
         const std::shared_ptr<complex>& p = payloads[perm] =
-            std::shared_ptr<complex>(new complex[4], std::default_delete<complex[]>());
-        std::copy(matrix, matrix + 4, p.get());
+            std::shared_ptr<complex>(new complex[4U], std::default_delete<complex[]>());
+        std::copy(matrix, matrix + 4U, p.get());
     }
 
     /**
@@ -518,8 +518,8 @@ struct QCircuitGate {
         , controls(ctrls)
     {
         for (const auto& payload : pylds) {
-            payloads[payload.first] = std::shared_ptr<complex>(new complex[4], std::default_delete<complex[]>());
-            std::copy(payload.second.get(), payload.second.get() + 4, payloads[payload.first].get());
+            payloads[payload.first] = std::shared_ptr<complex>(new complex[4U], std::default_delete<complex[]>());
+            std::copy(payload.second.get(), payload.second.get() + 4U, payloads[payload.first].get());
         }
     }
 
@@ -534,11 +534,11 @@ struct QCircuitGate {
             return false;
         }
 
-        if (controls.empty() && other->controls.empty()) {
-            return true;
-        }
-
         if (clifford) {
+            if (controls.empty() && other->controls.empty()) {
+                return true;
+            }
+
             const bool mc = IsClifford();
             const bool oc = other->IsClifford();
 
@@ -552,12 +552,12 @@ struct QCircuitGate {
             }
         }
 
-        if (std::includes(other->controls.begin(), other->controls.end(), controls.begin(), controls.end()) ||
-            std::includes(controls.begin(), controls.end(), other->controls.begin(), other->controls.end())) {
+        if (controls.empty() || other->controls.empty()) {
             return true;
         }
 
-        return false;
+        return std::includes(other->controls.begin(), other->controls.end(), controls.begin(), controls.end()) ||
+            std::includes(controls.begin(), controls.end(), other->controls.begin(), other->controls.end());
     }
 
     /**
@@ -568,12 +568,12 @@ struct QCircuitGate {
         controls.clear();
         payloads.clear();
 
-        payloads[ZERO_BCI] = std::shared_ptr<complex>(new complex[4], std::default_delete<complex[]>());
+        payloads[ZERO_BCI] = std::shared_ptr<complex>(new complex[4U], std::default_delete<complex[]>());
         complex* p = payloads[ZERO_BCI].get();
-        p[0] = ONE_CMPLX;
-        p[1] = ZERO_CMPLX;
-        p[2] = ZERO_CMPLX;
-        p[3] = ONE_CMPLX;
+        p[0U] = ONE_CMPLX;
+        p[1U] = ZERO_CMPLX;
+        p[2U] = ZERO_CMPLX;
+        p[3U] = ONE_CMPLX;
     }
 
     /**
@@ -599,7 +599,7 @@ struct QCircuitGate {
 
             nPayloads.emplace(nKey, payload.second);
 
-            std::shared_ptr<complex> np = std::shared_ptr<complex>(new complex[4], std::default_delete<complex[]>());
+            std::shared_ptr<complex> np = std::shared_ptr<complex>(new complex[4U], std::default_delete<complex[]>());
             std::copy(payload.second.get(), payload.second.get() + 4U, np.get());
             bi_or_ip(&nKey, midPow);
             nPayloads.emplace(nKey, np);
@@ -632,7 +632,8 @@ struct QCircuitGate {
             const complex* l = payloads[nKey].get();
             bi_or_ip(&nKey, midPow);
             const complex* h = payloads[nKey].get();
-            if (amp_leq_0(l[0] - h[0]) && amp_leq_0(l[1] - h[1]) && amp_leq_0(l[2] - h[2]) && amp_leq_0(l[3] - h[3])) {
+            if (amp_leq_0(l[0U] - h[0U]) && amp_leq_0(l[1U] - h[1U]) && amp_leq_0(l[2U] - h[2U]) &&
+                amp_leq_0(l[3U] - h[3U])) {
                 continue;
             }
 
@@ -698,7 +699,7 @@ struct QCircuitGate {
             const auto& pit = payloads.find(payload.first);
             if (pit == payloads.end()) {
                 const std::shared_ptr<complex>& p = payloads[payload.first] =
-                    std::shared_ptr<complex>(new complex[4], std::default_delete<complex[]>());
+                    std::shared_ptr<complex>(new complex[4U], std::default_delete<complex[]>());
                 std::copy(payload.second.get(), payload.second.get() + 4U, p.get());
 
                 continue;
@@ -708,8 +709,8 @@ struct QCircuitGate {
             complex out[4];
             mul2x2(payload.second.get(), p, out);
 
-            if (amp_leq_0(out[1]) && amp_leq_0(out[2]) && amp_leq_0(ONE_CMPLX - out[0]) &&
-                amp_leq_0(ONE_CMPLX - out[3])) {
+            if (amp_leq_0(out[1U]) && amp_leq_0(out[2U]) && amp_leq_0(ONE_CMPLX - out[0U]) &&
+                amp_leq_0(ONE_CMPLX - out[3U])) {
                 payloads.erase(pit);
 
                 continue;
@@ -746,21 +747,32 @@ struct QCircuitGate {
      */
     bool IsIdentity()
     {
-        if (controls.size()) {
-            return false;
-        }
-
-        if (payloads.size() != 1U) {
-            return false;
-        }
-
-        complex* p = payloads.begin()->second.get();
-
-        if (amp_leq_0(p[1]) && amp_leq_0(p[2]) && amp_leq_0(ONE_CMPLX - p[0]) && amp_leq_0(ONE_CMPLX - p[3])) {
+        const bitCapInt controlPow = pow2(controls.size());
+        if (payloads.size() == controlPow) {
+            const complex* refP = payloads.begin()->second.get();
+            if (norm(refP[0U] - refP[3U]) > FP_NORM_EPSILON) {
+                return false;
+            }
+            const complex phaseFac = refP[0U];
+            for (const auto& payload : payloads) {
+                complex* p = payload.second.get();
+                if ((norm(p[1U]) > FP_NORM_EPSILON) || (norm(p[2U]) > FP_NORM_EPSILON) ||
+                    (norm(phaseFac - p[0U]) > FP_NORM_EPSILON) || (norm(phaseFac - p[3U]) > FP_NORM_EPSILON)) {
+                    return false;
+                }
+            }
             return true;
         }
 
-        return false;
+        for (const auto& payload : payloads) {
+            complex* p = payload.second.get();
+            if ((norm(p[1U]) > FP_NORM_EPSILON) || (norm(p[2U]) > FP_NORM_EPSILON) ||
+                (norm(ONE_CMPLX - p[0U]) > FP_NORM_EPSILON) || (norm(ONE_CMPLX - p[3U]) > FP_NORM_EPSILON)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -770,7 +782,7 @@ struct QCircuitGate {
     {
         for (const auto& payload : payloads) {
             complex* p = payload.second.get();
-            if ((norm(p[1]) > FP_NORM_EPSILON) || (norm(p[2]) > FP_NORM_EPSILON)) {
+            if ((norm(p[1U]) > FP_NORM_EPSILON) || (norm(p[2U]) > FP_NORM_EPSILON)) {
                 return false;
             }
         }
@@ -785,7 +797,7 @@ struct QCircuitGate {
     {
         for (const auto& payload : payloads) {
             complex* p = payload.second.get();
-            if ((norm(p[0]) > FP_NORM_EPSILON) || (norm(p[3]) > FP_NORM_EPSILON)) {
+            if ((norm(p[0U]) > FP_NORM_EPSILON) || (norm(p[3U]) > FP_NORM_EPSILON)) {
                 return false;
             }
         }
@@ -818,6 +830,23 @@ struct QCircuitGate {
             return false;
         }
         complex* p = payloads[ONE_BCI].get();
+        if ((norm(p[0]) > FP_NORM_EPSILON) || (norm(p[3]) > FP_NORM_EPSILON) ||
+            (norm(ONE_CMPLX - p[1]) > FP_NORM_EPSILON) || (norm(ONE_CMPLX - p[2]) > FP_NORM_EPSILON)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Am I a CNOT gate?
+     */
+    bool IsAntiCnot()
+    {
+        if ((controls.size() != 1U) || (payloads.size() != 1U) || (payloads.find(ZERO_BCI) == payloads.end())) {
+            return false;
+        }
+        complex* p = payloads[ZERO_BCI].get();
         if ((norm(p[0]) > FP_NORM_EPSILON) || (norm(p[3]) > FP_NORM_EPSILON) ||
             (norm(ONE_CMPLX - p[1]) > FP_NORM_EPSILON) || (norm(ONE_CMPLX - p[2]) > FP_NORM_EPSILON)) {
             return false;
@@ -904,7 +933,7 @@ struct QCircuitGate {
                 }
             }
             const auto& poi = payloads.find(pf);
-            if ((poi == payloads.end()) || (norm(poi->second.get()[0]) > FP_NORM_EPSILON)) {
+            if ((poi == payloads.end()) || (norm(poi->second.get()[0U]) > FP_NORM_EPSILON)) {
                 nPayloads[payload.first] = payload.second;
             } else {
                 nPayloads[payload.first ^ p] = payload.second;
@@ -922,12 +951,12 @@ struct QCircuitGate {
     {
         const bitCapIntOcl maxQPower = pow2Ocl(controls.size());
         std::unique_ptr<complex[]> toRet(new complex[maxQPower << 2U]);
-        QRACK_CONST complex identity[4] = { ONE_CMPLX, ZERO_CMPLX, ZERO_CMPLX, ONE_CMPLX };
+        QRACK_CONST complex identity[4U] = { ONE_CMPLX, ZERO_CMPLX, ZERO_CMPLX, ONE_CMPLX };
         for (bitCapIntOcl i = 0U; i < maxQPower; ++i) {
             complex* mtrx = toRet.get() + (i << 2U);
             const auto& p = payloads.find(i);
             if (p == payloads.end()) {
-                std::copy(identity, identity + 4, mtrx);
+                std::copy(identity, identity + 4U, mtrx);
                 continue;
             }
 
@@ -997,7 +1026,7 @@ public:
     QCircuit(bool collapse = true, bool clifford = false)
         : isCollapsed(collapse)
         , isNearClifford(clifford)
-        , qubitCount(0)
+        , qubitCount(0U)
         , gates()
     {
         // Intentionally left blank
@@ -1068,7 +1097,7 @@ public:
             std::swap(q1, q2);
         }
 
-        QRACK_CONST complex m[4] = { ZERO_CMPLX, ONE_CMPLX, ONE_CMPLX, ZERO_CMPLX };
+        QRACK_CONST complex m[4U] = { ZERO_CMPLX, ONE_CMPLX, ONE_CMPLX, ZERO_CMPLX };
         const std::set<bitLenInt> s1 = { q1 };
         const std::set<bitLenInt> s2 = { q2 };
         AppendGate(std::make_shared<QCircuitGate>(q1, m, s2, ONE_BCI));
@@ -1104,7 +1133,7 @@ public:
     /**
      * Add a gate to the gate sequence.
      */
-    void AppendGate(QCircuitGatePtr nGate);
+    bool AppendGate(QCircuitGatePtr nGate);
     /**
      * Run this circuit.
      */
@@ -1190,7 +1219,8 @@ public:
 
 std::ostream& operator<<(std::ostream& os, const QCircuitPtr g);
 std::istream& operator>>(std::istream& os, QCircuitPtr& g);
-} //namespace Qrack
+} // namespace Qrack
+
 
 //////////////////////////////////////////////////////////////////////////////////////
 //
@@ -1204,8 +1234,6 @@ std::istream& operator>>(std::istream& os, QCircuitPtr& g);
 
 #include "qcircuit.hpp"
 
-#include <iomanip>
-
 namespace Qrack {
 
 std::ostream& operator<<(std::ostream& os, const QCircuitGatePtr g)
@@ -1218,15 +1246,11 @@ std::ostream& operator<<(std::ostream& os, const QCircuitGatePtr g)
     }
 
     os << g->payloads.size() << " ";
-#if FPPOW > 6
-    os << std::setprecision(36);
-#elif FPPOW > 5
-    os << std::setprecision(17);
-#endif
     for (const auto& p : g->payloads) {
-        os << p.first << " ";
+        os << (size_t)p.first << " ";
+        const complex* mtrx = p.second.get();
         for (size_t i = 0U; i < 4U; ++i) {
-            os << p.second.get()[i] << " ";
+            os << mtrx[i] << " ";
         }
     }
 
@@ -1255,7 +1279,7 @@ std::istream& operator>>(std::istream& is, QCircuitGatePtr& g)
         bitCapInt k;
         is >> k;
 
-        g->payloads[k] = std::shared_ptr<complex>(new complex[4], std::default_delete<complex[]>());
+        g->payloads[k] = std::shared_ptr<complex>(new complex[4U], std::default_delete<complex[]>());
         for (size_t j = 0U; j < 4U; ++j) {
             is >> g->payloads[k].get()[j];
         }
@@ -1296,15 +1320,15 @@ std::istream& operator>>(std::istream& is, QCircuitPtr& c)
     return is;
 }
 
-void QCircuit::AppendGate(QCircuitGatePtr nGate)
+bool QCircuit::AppendGate(QCircuitGatePtr nGate)
 {
     if (!isCollapsed) {
         gates.push_back(nGate);
-        return;
+        return false;
     }
 
     if (nGate->IsIdentity()) {
-        return;
+        return true;
     }
 
     if ((nGate->target + 1U) > qubitCount) {
@@ -1320,26 +1344,40 @@ void QCircuit::AppendGate(QCircuitGatePtr nGate)
     for (std::list<QCircuitGatePtr>::reverse_iterator gate = gates.rbegin(); gate != gates.rend(); ++gate) {
         if ((*gate)->TryCombine(nGate, isNearClifford)) {
             if ((*gate)->IsIdentity()) {
+                std::set<bitLenInt> gQubits((*gate)->controls);
+                gQubits.insert((*gate)->target);
                 std::list<QCircuitGatePtr>::reverse_iterator _gate = gate++;
                 std::list<QCircuitGatePtr> head(_gate.base(), gates.end());
                 gates.erase(gate.base(), gates.end());
-                for (std::list<QCircuitGatePtr>::iterator g = head.begin(); g != head.end(); ++g) {
-                    if (!nGate->CanCombine(*g, isNearClifford) && !nGate->CanPass(*g)) {
-                        gates.push_back(*g);
+                for (; head.size() && gQubits.size(); head.erase(head.begin())) {
+                    std::set<bitLenInt> hQubits(head.front()->controls);
+                    hQubits.insert((*head.begin())->target);
+                    if (!std::any_of(hQubits.begin(), hQubits.end(),
+                            [&gQubits](bitLenInt element) { return gQubits.count(element) > 0; })) {
+                        gates.push_back(head.front());
+                        continue;
+                    }
+                    if (AppendGate(head.front())) {
+                        gQubits.insert(hQubits.begin(), hQubits.end());
                     } else {
-                        AppendGate(*g);
+                        for (const auto& hq : hQubits) {
+                            gQubits.erase(hq);
+                        }
                     }
                 }
+                gates.insert(gates.end(), head.begin(), head.end());
             }
-            return;
+            return true;
         }
         if (!(*gate)->CanPass(nGate)) {
             gates.insert(gate.base(), { nGate });
-            return;
+            return false;
         }
     }
 
     gates.push_front(nGate);
+
+    return true;
 }
 
 void QCircuit::Run(QInterfacePtr qsim)
@@ -1356,20 +1394,22 @@ void QCircuit::Run(QInterfacePtr qsim)
         std::advance(end, gates.size() - 2U);
         std::list<QCircuitGatePtr>::iterator gate;
         for (gate = gates.begin(); gate != end; ++gate) {
-            if (!(*gate)->IsCnot()) {
+            bool isAnti = (*gate)->IsAntiCnot();
+            if (!((*gate)->IsCnot() || isAnti))
+            {
                 nGates.push_back(*gate);
                 continue;
             }
             std::list<QCircuitGatePtr>::iterator adv = gate;
             ++adv;
-            if (!(*adv)->IsCnot() || ((*adv)->target != *((*gate)->controls.begin())) ||
-                ((*gate)->target != *((*adv)->controls.begin()))) {
+            if (!((isAnti && (*adv)->IsAntiCnot()) || (!isAnti && (*adv)->IsCnot())) ||
+                ((*adv)->target != *((*gate)->controls.begin())) || ((*gate)->target != *((*adv)->controls.begin()))) {
                 nGates.push_back(*gate);
                 continue;
             }
             ++adv;
-            if (!(*adv)->IsCnot() || ((*adv)->target != (*gate)->target) ||
-                (*((*gate)->controls.begin()) != *((*adv)->controls.begin()))) {
+            if (!((isAnti && (*adv)->IsAntiCnot()) || (!isAnti && (*adv)->IsCnot())) ||
+                ((*adv)->target != (*gate)->target) || (*((*gate)->controls.begin()) != *((*adv)->controls.begin()))) {
                 nGates.push_back(*gate);
                 continue;
             }
@@ -1414,6 +1454,7 @@ void QCircuit::Run(QInterfacePtr qsim)
     }
 }
 } // namespace Qrack
+
 
 //////////////////////////////////////////////////////////////////////////////////////
 //
