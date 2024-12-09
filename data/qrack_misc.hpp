@@ -1320,25 +1320,6 @@ std::istream& operator>>(std::istream& is, QCircuitPtr& c)
     return is;
 }
 
-std::istream& operator>>(std::istream& is, QCircuitPtr& c)
-{
-    size_t qubitCount;
-    is >> qubitCount;
-    c->SetQubitCount((bitLenInt)qubitCount);
-
-    size_t gSize;
-    is >> gSize;
-    std::list<QCircuitGatePtr> gl;
-    for (size_t i = 0U; i < gSize; ++i) {
-        QCircuitGatePtr g = std::make_shared<QCircuitGate>();
-        is >> g;
-        gl.push_back(g);
-    }
-    c->SetGateList(gl);
-
-    return is;
-}
-
 bool QCircuit::AppendGate(QCircuitGatePtr nGate)
 {
     if (!isCollapsed) {
