@@ -1320,6 +1320,25 @@ std::istream& operator>>(std::istream& is, QCircuitPtr& c)
     return is;
 }
 
+std::istream& operator>>(std::istream& is, QCircuitPtr& c)
+{
+    size_t qubitCount;
+    is >> qubitCount;
+    c->SetQubitCount((bitLenInt)qubitCount);
+
+    size_t gSize;
+    is >> gSize;
+    std::list<QCircuitGatePtr> gl;
+    for (size_t i = 0U; i < gSize; ++i) {
+        QCircuitGatePtr g = std::make_shared<QCircuitGate>();
+        is >> g;
+        gl.push_back(g);
+    }
+    c->SetGateList(gl);
+
+    return is;
+}
+
 bool QCircuit::AppendGate(QCircuitGatePtr nGate)
 {
     if (!isCollapsed) {
@@ -1341,6 +1360,9 @@ bool QCircuit::AppendGate(QCircuitGatePtr nGate)
         }
     }
 
+    std::set<bitLenInt> nQubits(nGate->controls);
+    nQubits.insert(nGate->target);
+    bool didCommute = false;
     for (std::list<QCircuitGatePtr>::reverse_iterator gate = gates.rbegin(); gate != gates.rend(); ++gate) {
         if ((*gate)->TryCombine(nGate, isNearClifford)) {
             if ((*gate)->IsIdentity()) {
@@ -1371,13 +1393,17 @@ bool QCircuit::AppendGate(QCircuitGatePtr nGate)
         }
         if (!(*gate)->CanPass(nGate)) {
             gates.insert(gate.base(), { nGate });
-            return false;
+            return didCommute;
         }
+        std::set<bitLenInt> gQubits((*gate)->controls);
+        gQubits.insert((*gate)->target);
+        didCommute |= std::any_of(
+            nQubits.begin(), nQubits.end(), [&gQubits](bitLenInt element) { return gQubits.count(element) > 0; });
     }
 
     gates.push_front(nGate);
 
-    return true;
+    return didCommute;
 }
 
 void QCircuit::Run(QInterfacePtr qsim)
