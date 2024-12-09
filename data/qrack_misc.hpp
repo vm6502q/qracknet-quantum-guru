@@ -1341,6 +1341,9 @@ bool QCircuit::AppendGate(QCircuitGatePtr nGate)
         }
     }
 
+    std::set<bitLenInt> nQubits(nGate->controls);
+    nQubits.insert(nGate->target);
+    bool didCommute = false;
     for (std::list<QCircuitGatePtr>::reverse_iterator gate = gates.rbegin(); gate != gates.rend(); ++gate) {
         if ((*gate)->TryCombine(nGate, isNearClifford)) {
             if ((*gate)->IsIdentity()) {
@@ -1371,13 +1374,17 @@ bool QCircuit::AppendGate(QCircuitGatePtr nGate)
         }
         if (!(*gate)->CanPass(nGate)) {
             gates.insert(gate.base(), { nGate });
-            return false;
+            return didCommute;
         }
+        std::set<bitLenInt> gQubits((*gate)->controls);
+        gQubits.insert((*gate)->target);
+        didCommute |= std::any_of(
+            nQubits.begin(), nQubits.end(), [&gQubits](bitLenInt element) { return gQubits.count(element) > 0; });
     }
 
     gates.push_front(nGate);
 
-    return true;
+    return didCommute;
 }
 
 void QCircuit::Run(QInterfacePtr qsim)
