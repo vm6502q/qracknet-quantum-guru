@@ -2186,15 +2186,25 @@ BigInteger ipow(BigInteger base, unsigned exp) {
   return result;
 }
 
-inline uint64_t log2(BigInteger n) {
-  uint64_t pow = 0U;
+inline size_t log2(BigInteger n) {
+  size_t pow = 0U;
   while (n >>= 1U) {
     ++pow;
   }
   return pow;
 }
 
-inline BigInteger sqrt(const BigInteger &toTest) {
+inline BigInteger gcd(BigInteger n1, BigInteger n2) {
+  while (n2) {
+    const BigInteger t = n1;
+    n1 = n2;
+    n2 = t % n2;
+  }
+
+  return n1;
+}
+
+BigInteger sqrt(const BigInteger &toTest) {
   // Otherwise, find b = sqrt(b^2).
   BigInteger start = 1U, end = toTest >> 1U, ans = 0U;
   do {
@@ -2219,73 +2229,39 @@ inline BigInteger sqrt(const BigInteger &toTest) {
   return ans;
 }
 
-inline BigInteger gcd(BigInteger n1, BigInteger n2) {
-  while (n2) {
-    const BigInteger t = n1;
-    n1 = n2;
-    n2 = t % n2;
-  }
+// We are multiplying out the first distinct primes, below.
 
-  return n1;
+// Make this NOT a multiple of 2.
+inline BigInteger forward2(const size_t& p) { return (p << 1U) | 1U; }
+
+inline size_t backward2(const BigInteger& p) { return (size_t)(p >> 1U); }
+
+// Make this NOT a multiple of 2 or 3.
+inline BigInteger forward3(const size_t& p) { return (p << 1U) + (~(~p | 1U)) - 1U; }
+
+inline size_t backward3(const BigInteger& n) { return (size_t)((~(~n | 1U)) / 3U) + 1U; }
+
+constexpr unsigned char wheel5[8U] = { 1U, 7U, 11U, 13U, 17U, 19U, 23U, 29U };
+
+// Make this NOT a multiple of 2, 3, or 5.
+BigInteger forward5(const size_t& p) { return wheel5[p % 8U] + (p / 8U) * 30U; }
+
+size_t backward5(const BigInteger &n) {
+    return std::distance(wheel5, std::lower_bound(wheel5, wheel5 + 8U, (size_t)(n % 30U))) + 8U * (size_t)(n / 30U) + 1U;
 }
 
-inline BigInteger forward2(const size_t &p) {
-  // Make this NOT a multiple of 2.
-  return (p << 1U) | 1U;
+constexpr unsigned char wheel7[48U] = {
+    1U, 11U, 13U, 17U, 19U, 23U, 29U, 31U, 37U, 41U, 43U, 47U, 53U, 59U, 61U, 67U, 71U, 73U, 79U, 83U, 89U,
+    97U, 101U, 103U, 107U, 109U, 113U, 121U, 127U, 131U, 137U, 139U, 143U, 149U, 151U, 157U, 163U, 167U,
+    169U, 173U, 179U, 181U, 187U, 191U, 193U, 197U, 199U, 209U
+};
+
+// Make this NOT a multiple of 2, 3, 5, or 7.
+BigInteger forward7(const size_t& p) { return wheel7[p % 48U] + (p / 48U) * 210U; }
+
+size_t backward7(const BigInteger& n) {
+    return std::distance(wheel7, std::lower_bound(wheel7, wheel7 + 48U, (size_t)(n % 210U))) + 48U * (size_t)(n / 210U) + 1U;
 }
-
-inline BigInteger forward2(const BigInteger &p) {
-  // Make this NOT a multiple of 2.
-  return (p << 1U) | 1U;
-}
-
-inline BigInteger backward2(const BigInteger &n) {
-  return n >> 1U;
-}
-
-inline size_t _backward2(const BigInteger &n) {
-  return (size_t)(n >> 1U);
-}
-
-inline BigInteger forward3(const size_t &p) {
-  // Make this NOT a multiple of 2 or 3.
-  return (p << 1U) + (~(~p | 1U)) - 1U;
-}
-
-inline BigInteger forward3(const BigInteger &p) {
-  // Make this NOT a multiple of 2 or 3.
-  return (p << 1U) + (~(~p | 1U)) - 1U;
-}
-
-inline BigInteger backward3(const BigInteger &n) { return ((~(~n | 1U)) / 3U) + 1U; }
-
-inline size_t _backward3(const BigInteger &n) { return (size_t)((~(~n | 1U)) / 3U) + 1U; }
-
-inline BigInteger forward5(const size_t &p) {
-  constexpr unsigned char m[8U] = {1U, 7U, 11U, 13U, 17U, 19U, 23U, 29U};
-  return m[p % 8U] + (p / 8U) * 30U;
-}
-
-inline BigInteger forward5(const BigInteger &p) {
-  constexpr unsigned char m[8U] = {1U, 7U, 11U, 13U, 17U, 19U, 23U, 29U};
-  return m[(size_t)(p % 8U)] + (p / 8U) * 30U;
-}
-
-inline BigInteger backward5(const BigInteger &n) { return (((((n + 1U) << 2U) / 5U + 1U) << 1U) / 3U + 1U) >> 1U; }
-
-inline size_t _backward5(const BigInteger &n) { return (size_t)(((((n + 1U) << 2U) / 5U + 1U) << 1U) / 3U + 1U) >> 1U; }
-
-constexpr unsigned char wheel7[48U] = {1U,   11U,  13U,  17U,  19U,  23U,  29U,  31U,  37U,  41U,  43U,  47U,  53U,  59U,  61U,  67U,
-                                       71U,  73U,  79U,  83U,  89U,  97U,  101U, 103U, 107U, 109U, 113U, 121U, 127U, 131U, 137U, 139U,
-                                       143U, 149U, 151U, 157U, 163U, 167U, 169U, 173U, 179U, 181U, 187U, 191U, 193U, 197U, 199U, 209U};
-
-inline BigInteger forward7(const size_t &p) { return wheel7[p % 48U] + (p / 48U) * 210U; }
-
-inline BigInteger forward7(const BigInteger &p) { return wheel7[(size_t)(p % 48U)] + (p / 48U) * 210U; }
-
-inline BigInteger backward7(const BigInteger &n) { return std::distance(wheel7, std::lower_bound(wheel7, wheel7 + 48U, n % 210U)) + 48U * (n / 210U) + 1U; }
-
-inline size_t _backward7(const BigInteger &n) { return (size_t)(std::distance(wheel7, std::lower_bound(wheel7, wheel7 + 48U, n % 210U)) + 48U * (n / 210U) + 1U); }
 
 constexpr unsigned short wheel11[480U] = {
     1U,    13U,   17U,   19U,   23U,   29U,   31U,   37U,   41U,   43U,   47U,   53U,   59U,   61U,   67U,   71U,   73U,   79U,   83U,   89U,   97U,   101U,  103U,  107U,
@@ -2309,33 +2285,48 @@ constexpr unsigned short wheel11[480U] = {
     2081U, 2083U, 2087U, 2089U, 2099U, 2111U, 2113U, 2117U, 2119U, 2129U, 2131U, 2137U, 2141U, 2143U, 2147U, 2153U, 2159U, 2161U, 2171U, 2173U, 2179U, 2183U, 2197U, 2201U,
     2203U, 2207U, 2209U, 2213U, 2221U, 2227U, 2231U, 2237U, 2239U, 2243U, 2249U, 2251U, 2257U, 2263U, 2267U, 2269U, 2273U, 2279U, 2281U, 2287U, 2291U, 2293U, 2297U, 2309U};
 
-inline BigInteger forward11(const size_t &p) {
-  // Make this NOT a multiple of 2, 3, 5, 7, or 11.
-  return wheel11[p % 480U] + (p / 480U) * 2310U;
+// Make this NOT a multiple of 2, 3, 5, 7, or 11.
+BigInteger forward11(const size_t &p) { return wheel11[p % 480U] + (p / 480U) * 2310U; }
+
+size_t backward11(const BigInteger &n) {
+    return std::distance(wheel11, std::lower_bound(wheel11, wheel11 + 480U, (size_t)(n % 2310U))) + 480U * (size_t)(n / 2310U) + 1U;
 }
 
-inline BigInteger forward11(const BigInteger &p) {
-  // Make this NOT a multiple of 2, 3, 5, 7, or 11.
-  return wheel11[(size_t)(p % 480U)] + (p / 480U) * 2310U;
+inline BigInteger _forward2(const BigInteger &p) { return (p << 1U) | 1U; }
+
+inline BigInteger _backward2(const BigInteger &n) { return n >> 1U; }
+
+inline BigInteger _forward3(const BigInteger &p) { return (p << 1U) + (~(~p | 1U)) - 1U; }
+
+inline BigInteger _backward3(const BigInteger &n) { return ((~(~n | 1U)) / 3U) + 1U; }
+
+BigInteger _forward5(const BigInteger &p) { return wheel5[(size_t)(p % 8U)] + (p / 8U) * 30U; }
+
+BigInteger _backward5(const BigInteger &n) {
+    return std::distance(wheel5, std::lower_bound(wheel5, wheel5 + 8U, (size_t)(n % 30U))) + 8U * (n / 30U) + 1U;
 }
 
-inline BigInteger backward11(const BigInteger &n) { return std::distance(wheel11, std::lower_bound(wheel11, wheel11 + 480U, size_t(n % 2310U))) + 480U * (n / 2310U) + 1U; }
+BigInteger _forward7(const BigInteger &p) { return wheel7[(size_t)(p % 48U)] + (p / 48U) * 210U; }
 
-inline size_t _backward11(const BigInteger &n) { return std::distance(wheel11, std::lower_bound(wheel11, wheel11 + 480U, size_t(n % 2310U))) + 480U * (size_t)(n / 2310U) + 1U; }
+BigInteger _backward7(const BigInteger &n) { return std::distance(wheel7, std::lower_bound(wheel7, wheel7 + 48U, n % 210U)) + 48U * (n / 210U) + 1U; }
+
+BigInteger _forward11(const BigInteger &p) { return wheel11[(size_t)(p % 480U)] + (p / 480U) * 2310U; }
+
+BigInteger _backward11(const BigInteger &n) { return std::distance(wheel11, std::lower_bound(wheel11, wheel11 + 480U, (size_t)(n % 2310U))) + 480U * (n / 2310U) + 1U; }
 
 typedef BigInteger (*ForwardFn)(const BigInteger&);
 inline ForwardFn forward(const Wheel &w) {
   switch (w) {
   case WHEEL2:
-    return forward2;
+    return _forward2;
   case WHEEL3:
-    return forward3;
+    return _forward3;
   case WHEEL5:
-    return forward5;
+    return _forward5;
   case WHEEL7:
-    return forward7;
+    return _forward7;
   case WHEEL11:
-    return forward11;
+    return _forward11;
   case WHEEL1:
   default:
     return [](const BigInteger& n) -> BigInteger { return n; };
@@ -2345,15 +2336,15 @@ inline ForwardFn forward(const Wheel &w) {
 inline ForwardFn backward(const Wheel& w) {
   switch (w) {
   case WHEEL2:
-    return backward2;
+    return _backward2;
   case WHEEL3:
-    return backward3;
+    return _backward3;
   case WHEEL5:
-    return backward5;
+    return _backward5;
   case WHEEL7:
-    return backward7;
+    return _backward7;
   case WHEEL11:
-    return backward11;
+    return _backward11;
   case WHEEL1:
   default:
     return [](const BigInteger& n) -> BigInteger { return n; };
@@ -2385,424 +2376,107 @@ inline size_t GetWheel5and7Increment(unsigned short &wheel5, unsigned long long 
   return (size_t)wheelIncrement;
 }
 
-std::vector<BigInteger> SieveOfEratosthenes(const BigInteger &n) {
-  std::vector<BigInteger> knownPrimes = {2U, 3U, 5U, 7U};
-  if (n < 2U) {
-    return std::vector<BigInteger>();
-  }
-
-  if (n < (knownPrimes.back() + 2U)) {
-    const auto highestPrimeIt = std::upper_bound(knownPrimes.begin(), knownPrimes.end(), n);
-    return std::vector<BigInteger>(knownPrimes.begin(), highestPrimeIt);
-  }
-
-  knownPrimes.reserve(std::expint(log((double)n)) - std::expint(log(2)));
-
-  // We are excluding multiples of the first few small primes from outset.
-  // For multiples of 2, 3, and 5 this reduces complexity to 4/15.
-  const size_t cardinality = _backward5(n);
-
-  // Create a boolean array "prime[0..cardinality]" and initialize all entries it as true.
-  // Rather, reverse the true/false meaning, so we can use default initialization.
-  // A value in notPrime[i] will finally be false only if i is a prime.
-  std::unique_ptr<bool[]> uNotPrime(new bool[cardinality + 1U]());
-  bool *notPrime = uNotPrime.get();
-
-  // We dispatch multiple marking asynchronously.
-  // If we've already marked all primes up to x,
-  // we're free to continue to up to x * x,
-  // then we synchronize.
-  BigInteger threadBoundary = 36U;
-
-  // Get the remaining prime numbers.
-  unsigned short wheel5 = 129U;
-  unsigned long long wheel7 = 9009416540524545ULL;
-  size_t o = 1U;
-  for (;;) {
-    o += GetWheel5and7Increment(wheel5, wheel7);
-
-    const BigInteger p = forward3(o);
-    if ((p * p) > n) {
-      break;
+std::vector<BigInteger> SieveOfEratosthenes(const BigInteger& n)
+{
+    std::vector<BigInteger> knownPrimes = { 2U, 3U, 5U, 7U };
+    if (n < 2U) {
+        return std::vector<BigInteger>();
     }
 
-    if (threadBoundary < p) {
-      dispatch.finish();
-      threadBoundary *= threadBoundary;
+    if (n < (knownPrimes.back() + 2U)) {
+        const auto highestPrimeIt = std::upper_bound(knownPrimes.begin(), knownPrimes.end(), n);
+        return std::vector<BigInteger>(knownPrimes.begin(), highestPrimeIt);
     }
 
-    if (notPrime[_backward5(p)]) {
-      continue;
-    }
+    knownPrimes.reserve(std::expint(log((double)n)) - std::expint(log(2)));
 
-    knownPrimes.push_back(p);
+    // We are excluding multiples of the first few
+    // small primes from outset. For multiples of
+    // 2, 3, and 5 this reduces complexity to 4/15.
+    const size_t cardinality = backward5(n);
 
-    dispatch.dispatch([&n, p, &notPrime]() {
-      // We are skipping multiples of 2, 3, and 5
-      // for space complexity, for 4/15 the bits.
-      // More are skipped by the wheel for time.
-      const BigInteger p2 = p << 1U;
-      const BigInteger p4 = p << 2U;
-      BigInteger i = p * p;
+    // Create a boolean array "prime[0..cardinality]"
+    // and initialize all entries it as true. Rather,
+    // reverse the true/false meaning, so we can use
+    // default initialization. A value in notPrime[i]
+    // will finally be false only if i is a prime.
+    std::unique_ptr<bool[]> uNotPrime(new bool[cardinality + 1U]());
+    bool* notPrime = uNotPrime.get();
 
-      // "p" already definitely not a multiple of 3.
-      // Its remainder when divided by 3 can be 1 or 2.
-      // If it is 2, we can do a "half iteration" of the
-      // loop that would handle remainder of 1, and then
-      // we can proceed with the 1 remainder loop.
-      // This saves 2/3 of updates (or modulo).
-      if ((p % 3U) == 2U) {
-        notPrime[_backward5(i)] = true;
-        i += p2;
-        if (i > n) {
-          return false;
-        }
-      }
+    // Get the remaining prime numbers.
+    unsigned short wheel5 = 129U;
+    unsigned long long wheel7 = 9009416540524545ULL;
+    size_t o = 1U;
+    for (;;) {
+        o += GetWheel5and7Increment(wheel5, wheel7);
 
-      for (;;) {
-        if (i % 5U) {
-          notPrime[_backward5(i)] = true;
-        }
-        i += p4;
-        if (i > n) {
-          return false;
+        const BigInteger p = forward3(o);
+        if ((p * p) > n) {
+            break;
         }
 
-        if (i % 5U) {
-          notPrime[_backward5(i)] = true;
+        if (notPrime[backward5(p)]) {
+            continue;
         }
-        i += p2;
-        if (i > n) {
-          return false;
-        }
-      }
 
-      return false;
-    });
-  }
+        knownPrimes.push_back(p);
 
-  dispatch.finish();
-
-  for (;;) {
-    const BigInteger p = forward3(o);
-    if (p > n) {
-      break;
-    }
-
-    o += GetWheel5and7Increment(wheel5, wheel7);
-
-    if (notPrime[_backward5(p)]) {
-      continue;
-    }
-
-    knownPrimes.push_back(p);
-  }
-
-  return knownPrimes;
-}
-
-std::vector<BigInteger> SegmentedSieveOfEratosthenes(BigInteger n) {
-  // TODO: This should scale to the system.
-  // Assume the L1/L2 cache limit is 2048 KB.
-  // We save half our necessary bytes by removing multiples of 2.
-  // The simple sieve removes multiples of 2, 3, and 5.
-  // limit = 2048 KB = 2097152 B,
-  // limit = ((((limit * 2) * 3) / 2) * 5) / 4
-  constexpr size_t limit = 7864321ULL;
-
-  if (!(n & 1U)) {
-    --n;
-  }
-  while (!(n % 3U) || !(n % 5U)) {
-    n -= 2U;
-  }
-  if (limit >= n) {
-    return SieveOfEratosthenes(n);
-  }
-  std::vector<BigInteger> knownPrimes = SieveOfEratosthenes(limit);
-  knownPrimes.reserve(std::expint(log((double)n)) - std::expint(log(2)));
-
-  // Divide the range in different segments
-  const size_t nCardinality = _backward5(n);
-  size_t low = _backward5(limit);
-  size_t high = low + limit;
-
-  // Process one segment at a time till we pass n.
-  while (low < nCardinality) {
-    if (high > nCardinality) {
-      high = nCardinality;
-    }
-
-    const BigInteger fLo = forward5(low);
-    const size_t sqrtIndex = std::distance(knownPrimes.begin(), std::upper_bound(knownPrimes.begin(), knownPrimes.end(), sqrt(forward5(high)) + 1U));
-
-    const size_t cardinality = high - low;
-    bool notPrime[cardinality + 1U] = {false};
-
-    for (size_t k = 3U; k < sqrtIndex; ++k) {
-      const BigInteger &p = knownPrimes[k];
-      dispatch.dispatch([&fLo, &low, &cardinality, p, &notPrime]() {
-        // We are skipping multiples of 2.
+        // We are skipping multiples of 2, 3, and 5
+        // for space complexity, for 4/15 the bits.
+        // More are skipped by the wheel for time.
         const BigInteger p2 = p << 1U;
+        const BigInteger p4 = p << 2U;
+        BigInteger i = p * p;
 
-        // Find the minimum number in [low..high] that is a multiple of prime[i] (divisible by prime[i]).
-        // For example, if low is 31 and prime[i] is 3, we start with 33.
-        BigInteger i = (fLo / p) * p;
-        if (i < fLo) {
-          i += p;
-        }
-        if (!(i & 1U)) {
-          i += p;
+        // "p" already definitely not a multiple of 3.
+        // Its remainder when divided by 3 can be 1 or 2.
+        // If it is 2, we can do a "half iteration" of the
+        // loop that would handle remainder of 1, and then
+        // we can proceed with the 1 remainder loop.
+        // This saves 2/3 of updates (or modulo).
+        if ((p % 3U) == 2U) {
+            notPrime[backward5(i)] = true;
+            i += p2;
+            if (i > n) {
+                continue;
+            }
         }
 
         for (;;) {
-          const size_t o = _backward5(i) - low;
-          if (o > cardinality) {
-            return false;
-          }
-          if ((i % 3U) && (i % 5U)) {
-            notPrime[o] = true;
-          }
-          i += p2;
+            if (i % 5U) {
+                notPrime[backward5(i)] = true;
+            }
+            i += p4;
+            if (i > n) {
+                break;
+            }
+
+            if (i % 5U) {
+                notPrime[backward5(i)] = true;
+            }
+            i += p2;
+            if (i > n) {
+                break;
+            }
         }
-
-        return false;
-      });
-    }
-    dispatch.finish();
-
-    // Numbers which are not marked are prime
-    for (size_t o = 1U; o <= cardinality; ++o) {
-      if (!notPrime[o]) {
-        knownPrimes.push_back(forward5(o + low));
-      }
     }
 
-    // Update low and high for next segment
-    low = low + limit;
-    high = low + limit;
-  }
+    for (;;) {
+        const BigInteger p = forward3(o);
+        if (p > n) {
+            break;
+        }
 
-  return knownPrimes;
-}
+        o += GetWheel5and7Increment(wheel5, wheel7);
 
-BigInteger CountPrimesTo(const BigInteger &n) {
-  const BigInteger knownPrimes[4U] = {2U, 3U, 5U, 7U};
-  if (n < 2U) {
-    return 0U;
-  }
+        if (notPrime[backward5(p)]) {
+            continue;
+        }
 
-  if (n < 11U) {
-    const auto highestPrimeIt = std::upper_bound(knownPrimes, knownPrimes + 4U, n);
-    return std::distance(knownPrimes, highestPrimeIt);
-  }
-
-  // We are excluding multiples of the first few small primes from outset.
-  // For multiples of 2, 3, and 5 this reduces complexity to 4/15.
-  const size_t cardinality = _backward5(n);
-
-  // Create a boolean array "prime[0..cardinality]" and initialize all entries it as true.
-  // Rather, reverse the true/false meaning, so we can use default initialization.
-  // A value in notPrime[i] will finally be false only if i is a prime.
-  std::unique_ptr<bool[]> uNotPrime(new bool[cardinality + 1U]());
-  bool *notPrime = uNotPrime.get();
-
-  // We dispatch multiple marking asynchronously.
-  // If we've already marked all primes up to x,
-  // we're free to continue to up to x * x,
-  // then we synchronize.
-  BigInteger threadBoundary = 36U;
-
-  // Get the remaining prime numbers.
-  unsigned short wheel5 = 129U;
-  unsigned long long wheel7 = 9009416540524545ULL;
-  size_t o = 1U;
-  BigInteger count = 4U;
-  for (;;) {
-    o += GetWheel5and7Increment(wheel5, wheel7);
-
-    const BigInteger p = forward3(o);
-    if ((p * p) > n) {
-      break;
+        knownPrimes.push_back(p);
     }
 
-    if (threadBoundary < p) {
-      dispatch.finish();
-      threadBoundary *= threadBoundary;
-    }
-
-    if (notPrime[_backward5(p)]) {
-      continue;
-    }
-
-    ++count;
-
-    dispatch.dispatch([&n, p, &notPrime]() {
-      // We are skipping multiples of 2, 3, and 5
-      // for space complexity, for 4/15 the bits.
-      // More are skipped by the wheel for time.
-      const BigInteger p2 = p << 1U;
-      const BigInteger p4 = p << 2U;
-      BigInteger i = p * p;
-
-      // "p" already definitely not a multiple of 3.
-      // Its remainder when divided by 3 can be 1 or 2.
-      // If it is 2, we can do a "half iteration" of the
-      // loop that would handle remainder of 1, and then
-      // we can proceed with the 1 remainder loop.
-      // This saves 2/3 of updates (or modulo).
-      if ((p % 3U) == 2U) {
-        notPrime[_backward5(i)] = true;
-        i += p2;
-        if (i > n) {
-          return false;
-        }
-      }
-
-      for (;;) {
-        if (i % 5U) {
-          notPrime[_backward5(i)] = true;
-        }
-        i += p4;
-        if (i > n) {
-          return false;
-        }
-
-        if (i % 5U) {
-          notPrime[_backward5(i)] = true;
-        }
-        i += p2;
-        if (i > n) {
-          return false;
-        }
-      }
-
-      return false;
-    });
-  }
-
-  dispatch.finish();
-
-  for (;;) {
-    const BigInteger p = forward3(o);
-    if (p > n) {
-      break;
-    }
-
-    o += GetWheel5and7Increment(wheel5, wheel7);
-
-    if (notPrime[_backward5(p)]) {
-      continue;
-    }
-
-    ++count;
-  }
-
-  return count;
-}
-
-BigInteger SegmentedCountPrimesTo(BigInteger n) {
-  // TODO: This should scale to the system.
-  // Assume the L1/L2 cache limit is 2048 KB.
-  // We save half our necessary bytes by removing multiples of 2.
-  // The simple sieve removes multiples of 2, 3, and 5.
-  // limit = 2048 KB = 2097152 B,
-  // limit = ((((limit * 2) * 3) / 2) * 5) / 4
-  constexpr size_t limit = 7864321ULL;
-
-  if (!(n & 1U)) {
-    --n;
-  }
-  while (!(n % 3U) || !(n % 5U)) {
-    n -= 2U;
-  }
-  if (limit >= n) {
-    return CountPrimesTo(n);
-  }
-  BigInteger sqrtnp1 = (sqrt(n) + 1U) | 1U;
-  while (!(sqrtnp1 % 3U) || !(sqrtnp1 % 5U)) {
-    sqrtnp1 += 2U;
-  }
-  const BigInteger practicalLimit = (sqrtnp1 < limit) ? sqrtnp1 : limit;
-  std::vector<BigInteger> knownPrimes = SieveOfEratosthenes(practicalLimit);
-  if (practicalLimit < sqrtnp1) {
-    knownPrimes.reserve(std::expint(log((double)sqrtnp1)) - std::expint(log(2)));
-  }
-  size_t count = knownPrimes.size();
-
-  // Divide the range in different segments
-  const size_t nCardinality = _backward5(n);
-  size_t low = _backward5(practicalLimit);
-  size_t high = low + limit;
-
-  // Process one segment at a time till we pass n.
-  while (low < nCardinality) {
-    if (high > nCardinality) {
-      high = nCardinality;
-    }
-    const BigInteger fLo = forward5(low);
-    const size_t sqrtIndex = std::distance(knownPrimes.begin(), std::upper_bound(knownPrimes.begin(), knownPrimes.end(), sqrt(forward5(high)) + 1U));
-
-    const size_t cardinality = high - low;
-    bool notPrime[cardinality + 1U] = {false};
-
-    // Use the primes found by the simple sieve to find primes in current range
-    for (size_t k = 3U; k < sqrtIndex; ++k) {
-      const BigInteger &p = knownPrimes[k];
-      dispatch.dispatch([&fLo, &low, &cardinality, p, &notPrime]() {
-        // We are skipping multiples of 2.
-        const BigInteger p2 = p << 1U;
-
-        // Find the minimum number in [low..high] that is a multiple of prime[i] (divisible by prime[i]).
-        // For example, if low is 31 and prime[i] is 3, we start with 33.
-        BigInteger i = (fLo / p) * p;
-        if (i < fLo) {
-          i += p;
-        }
-        if (!(i & 1U)) {
-          i += p;
-        }
-
-        for (;;) {
-          const size_t o = _backward5(i) - low;
-          if (o > cardinality) {
-            return false;
-          }
-          if ((i % 3U) && (i % 5U)) {
-            notPrime[o] = true;
-          }
-          i += p2;
-        }
-
-        return false;
-      });
-    }
-    dispatch.finish();
-
-    if (knownPrimes.back() >= sqrtnp1) {
-      for (size_t o = 1U; o <= cardinality; ++o) {
-        if (!notPrime[o]) {
-          ++count;
-        }
-      }
-    } else {
-      for (size_t o = 1U; o <= cardinality; ++o) {
-        if (!notPrime[o]) {
-          const BigInteger p = forward5(o + low);
-          if (p <= sqrtnp1) {
-            knownPrimes.push_back(p);
-          }
-          ++count;
-        }
-      }
-    }
-
-    // Update low and high for next segment
-    low = low + limit;
-    high = low + limit;
-  }
-
-  return count;
+    return knownPrimes;
 }
 
 inline bool isMultiple(const BigInteger &p, const std::vector<uint16_t> &knownPrimes) {
@@ -3182,7 +2856,7 @@ std::string find_a_factor(const std::string &toFactorStr, const bool &isConOfSqr
   const BigInteger primeCeiling = (65536ULL < fullMaxBase) ? (BigInteger)65536ULL : fullMaxBase;
   BigInteger result = 1U;
   // This uses very little memory and time, to find primes.
-  std::vector<BigInteger> bigPrimes = SegmentedSieveOfEratosthenes(primeCeiling);
+  std::vector<BigInteger> bigPrimes = SieveOfEratosthenes(primeCeiling);
   // All of our primes are necessarily less than 16-bit
   std::vector<uint16_t> primes(bigPrimes.size());
   std::transform(bigPrimes.begin(), bigPrimes.end(), primes.begin(), [](const BigInteger& p) { return (uint16_t)p; });
@@ -3193,14 +2867,14 @@ std::string find_a_factor(const std::string &toFactorStr, const bool &isConOfSqr
 
 
   // This is simply trial division up to the ceiling.
-  for (uint64_t primeIndex = 0U; (primeIndex < primes.size()) || (result != 1U); primeIndex += 64U) {
+  for (size_t primeIndex = 0U; (primeIndex < primes.size()) && (result == 1U); primeIndex += 64U) {
     dispatch.dispatch([&toFactor, &primes, &result, primeIndex]() {
-      const uint64_t maxLcv = std::min(primeIndex + 64U, primes.size());
-      for (uint64_t pi = primeIndex; pi < maxLcv; ++pi) {
+      const size_t maxLcv = std::min(primeIndex + 64U, primes.size());
+      for (size_t pi = primeIndex; pi < maxLcv; ++pi) {
         if (result != 1U) {
           return false;
         }
-        const uint16_t& currentPrime = primes[primeIndex];
+        const uint16_t& currentPrime = primes[pi];
         if (!(toFactor % currentPrime)) {
           result = currentPrime;
           return true;
@@ -3209,6 +2883,7 @@ std::string find_a_factor(const std::string &toFactorStr, const bool &isConOfSqr
       return false;
     });
   }
+  dispatch.finish();
   // If we've checked all primes below the square root of toFactor, then it's prime.
   if ((result != 1U) || (toFactor <= (primeCeiling * primeCeiling))) {
     return boost::lexical_cast<std::string>(result);
