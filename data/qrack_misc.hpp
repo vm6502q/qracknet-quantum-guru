@@ -2185,7 +2185,7 @@ inline size_t log2(BigInteger n) {
 }
 
 inline BigInteger gcd(const BigInteger& n1, const BigInteger& n2) {
-  if(!n2) {
+  if (!n2) {
     return n1;
   }
   return gcd(n2, n1 % n2);
@@ -2271,9 +2271,7 @@ BigInteger forward11(const size_t &p) { return wheel11[p % 480U] + (p / 480U) * 
 
 size_t backward11(const BigInteger &n) { return std::distance(wheel11, std::lower_bound(wheel11, wheel11 + 480U, (size_t)(n % 2310U))) + 480U * (size_t)(n / 2310U) + 1U; }
 
-inline BigInteger _forward2(const BigInteger &p) {
-  return (p << 1U) | 1U;
-}
+inline BigInteger _forward2(const BigInteger &p) { return (p << 1U) | 1U; }
 
 inline BigInteger _backward2(const BigInteger &n) { return n >> 1U; }
 
@@ -2333,7 +2331,7 @@ inline ForwardFn backward(const Wheel &w) {
 inline size_t GetWheel5and7Increment(unsigned short &wheel5, unsigned long long &wheel7) {
   constexpr unsigned short wheel5Back = 1U << 9U;
   constexpr unsigned long long wheel7Back = 1ULL << 55U;
-  unsigned wheelIncrement = 0U;
+  size_t wheelIncrement = 0U;
   bool is_wheel_multiple = false;
   do {
     is_wheel_multiple = (bool)(wheel5 & 1U);
@@ -2352,7 +2350,7 @@ inline size_t GetWheel5and7Increment(unsigned short &wheel5, unsigned long long 
     ++wheelIncrement;
   } while (is_wheel_multiple);
 
-  return (size_t)wheelIncrement;
+  return wheelIncrement;
 }
 
 std::vector<BigInteger> SieveOfEratosthenes(const BigInteger &n) {
@@ -2457,12 +2455,13 @@ std::vector<BigInteger> SieveOfEratosthenes(const BigInteger &n) {
   return knownPrimes;
 }
 
-inline bool isMultiple(const BigInteger &p, const std::vector<uint16_t> &knownPrimes) {
+bool isMultiple(const BigInteger &p, const std::vector<uint16_t> &knownPrimes) {
   for (const uint16_t &prime : knownPrimes) {
     if (!(p % prime)) {
       return true;
     }
   }
+
   return false;
 }
 
@@ -2491,10 +2490,11 @@ std::vector<boost::dynamic_bitset<size_t>> wheel_gen(const std::vector<uint16_t>
     wheelPrimes.push_back(p);
     output.push_back(wheel_inc(wheelPrimes));
   }
+
   return output;
 }
 
-inline size_t GetWheelIncrement(std::vector<boost::dynamic_bitset<size_t>> *inc_seqs) {
+size_t GetWheelIncrement(std::vector<boost::dynamic_bitset<size_t>> *inc_seqs) {
   size_t wheelIncrement = 0U;
   bool is_wheel_multiple = false;
   do {
@@ -2518,7 +2518,7 @@ inline size_t GetWheelIncrement(std::vector<boost::dynamic_bitset<size_t>> *inc_
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Utility to perform modular exponentiation
-BigInteger modExp(BigInteger base, BigInteger exp, const BigInteger &mod) {
+inline BigInteger modExp(BigInteger base, BigInteger exp, const BigInteger &mod) {
   BigInteger result = 1U;
   while (exp) {
     if (exp & 1U) {
@@ -2601,54 +2601,52 @@ struct Factorizer {
   BigInteger toFactorSqrt;
   BigInteger batchRange;
   BigInteger batchNumber;
-  BigInteger batchBound;
-  size_t wheelRatio;
+  BigInteger batchOffset;
+  size_t wheelEntryCount;
   size_t primePartBound;
   bool isIncomplete;
   std::vector<uint16_t> primes;
   ForwardFn forwardFn;
 
-  Factorizer(const BigInteger &tfsqr, const BigInteger &tf, const BigInteger &tfsqrt, const BigInteger &range, size_t nodeId, size_t wr, size_t ppb, const std::vector<uint16_t> &p,
+  Factorizer(const BigInteger &tfsqr, const BigInteger &tf, const BigInteger &tfsqrt, const BigInteger &range, size_t nodeId, size_t w, size_t ppb, const std::vector<uint16_t> &p,
              ForwardFn fn)
-      : rng({}), toFactorSqr(tfsqr), toFactor(tf), toFactorSqrt(tfsqrt), batchRange(range), batchNumber(0U), batchBound((nodeId + 1U) * range), wheelRatio(wr), primePartBound(ppb),
+      : rng({}), toFactorSqr(tfsqr), toFactor(tf), toFactorSqrt(tfsqrt), batchRange(range), batchNumber(0U), batchOffset(nodeId * range), wheelEntryCount(w), primePartBound(ppb),
         isIncomplete(true), primes(p), forwardFn(fn) {}
 
   BigInteger getNextBatch() {
     std::lock_guard<std::mutex> lock(batchMutex);
 
-    if (batchNumber == batchRange) {
+    if (batchNumber >= batchRange) {
       isIncomplete = false;
-      return batchBound;
     }
 
-    return batchBound - (++batchNumber);
+    return batchOffset + batchRange - ++batchNumber;
   }
 
   BigInteger getNextAltBatch() {
     std::lock_guard<std::mutex> lock(batchMutex);
 
-    if (batchNumber == batchRange) {
+    if (batchNumber >= batchRange) {
       isIncomplete = false;
-      return batchBound;
     }
 
-    const BigInteger halfBatchNum = (batchNumber++ >> 1U);
+    const BigInteger halfBatchNum = batchNumber++;
 
-    return batchBound - ((batchNumber & 1U) ? (BigInteger)(batchRange - halfBatchNum) : (BigInteger)(halfBatchNum + 1U));
+    return batchOffset + ((batchNumber & 1U) ? (BigInteger)halfBatchNum : (BigInteger)(batchRange - (halfBatchNum + 1U)));
   }
 
   BigInteger bruteForce(std::vector<boost::dynamic_bitset<size_t>> *inc_seqs) {
     // Up to wheel factorization, try all batches up to the square root of toFactor.
     for (BigInteger batchNum = getNextBatch(); isIncomplete; batchNum = getNextBatch()) {
-      const BigInteger batchStart = batchNum * wheelRatio;
-      const BigInteger batchEnd = (batchNum + 1U) * wheelRatio;
+      const BigInteger batchStart = batchNum * wheelEntryCount;
+      const BigInteger batchEnd = batchStart + wheelEntryCount;
       for (BigInteger p = batchStart; p < batchEnd;) {
-        p += GetWheelIncrement(inc_seqs);
         const BigInteger n = forwardFn(p);
         if (!(toFactor % n) && (n != 1U) && (n != toFactor)) {
           isIncomplete = false;
           return n;
         }
+        p += GetWheelIncrement(inc_seqs);
       }
     }
 
@@ -2661,11 +2659,9 @@ struct Factorizer {
     // Since the largest prime factors of these numbers is relatively small,
     // use the "exhaust" of brute force to produce smooth numbers for Quadratic Sieve.
     for (BigInteger batchNum = getNextAltBatch(); isIncomplete; batchNum = getNextAltBatch()) {
-      const BigInteger batchStart = batchNum * wheelRatio;
-      const BigInteger batchEnd = (batchNum + 1U) * wheelRatio;
+      const BigInteger batchStart = batchNum * wheelEntryCount;
+      const BigInteger batchEnd = batchStart + wheelEntryCount;
       for (BigInteger p = batchStart; p < batchEnd;) {
-        // Skip increments on the "wheels" (or "gears").
-        p += GetWheelIncrement(inc_seqs);
         // Brute-force check if the sequential number is a factor.
         const BigInteger n = forwardFn(p);
         // If so, terminate this node and return the answer.
@@ -2677,6 +2673,8 @@ struct Factorizer {
         semiSmoothParts->push_back(n);
         // Batch this work, to reduce contention.
         if (semiSmoothParts->size() < primePartBound) {
+          // Skip increments on the "wheels" (or "gears").
+          p += GetWheelIncrement(inc_seqs);
           continue;
         }
         // Our "smooth parts" are smaller than the square root of toFactor.
@@ -2688,6 +2686,8 @@ struct Factorizer {
           isIncomplete = false;
           return m;
         }
+        // Skip increments on the "wheels" (or "gears").
+        p += GetWheelIncrement(inc_seqs);
       }
     }
 
@@ -2841,15 +2841,14 @@ std::string find_a_factor(const std::string &toFactorStr, const bool &isConOfSqr
 
   // This is simply trial division up to the ceiling.
   DispatchQueue dispatch(std::thread::hardware_concurrency());
+  std::mutex trialDivisionMutex;
   for (size_t primeIndex = 0U; (primeIndex < primes.size()) && (result == 1U); primeIndex += 64U) {
-    dispatch.dispatch([&toFactor, &primes, &result, primeIndex]() {
+    dispatch.dispatch([&toFactor, &primes, &result, &trialDivisionMutex, primeIndex]() {
       const size_t maxLcv = std::min(primeIndex + 64U, primes.size());
       for (size_t pi = primeIndex; pi < maxLcv; ++pi) {
-        if (result != 1U) {
-          return false;
-        }
         const uint16_t &currentPrime = primes[pi];
         if (!(toFactor % currentPrime)) {
+          std::lock_guard<std::mutex> lock(trialDivisionMutex);
           result = currentPrime;
           return true;
         }
@@ -2865,6 +2864,7 @@ std::string find_a_factor(const std::string &toFactorStr, const bool &isConOfSqr
 
   // Set up wheel factorization (or "gear" factorization)
   std::vector<uint16_t> gearFactorizationPrimes(primes.begin(), itg);
+  std::vector<uint16_t> wheelFactorizationPrimes(primes.begin(), itw);
   // Primes are only present in range above wheel factorization level
   primes = std::vector<uint16_t>(itg, primes.begin() + std::min(primes.size(), gearFactorizationPrimes.size() + (size_t)(smoothnessBoundMultiplier * log2(toFactor))));
   // From 1, this is a period for wheel factorization
@@ -2872,6 +2872,14 @@ std::string find_a_factor(const std::string &toFactorStr, const bool &isConOfSqr
   for (const uint16_t &wp : gearFactorizationPrimes) {
     biggestWheel *= (size_t)wp;
   }
+  // Wheel entry count per largest "gear" scales our brute-force range.
+  size_t wheelEntryCount = 0U;
+  for (size_t i = 0U; i < biggestWheel; ++i) {
+    if (!isMultiple(i, wheelFactorizationPrimes)) {
+      ++wheelEntryCount;
+    }
+  }
+  wheelFactorizationPrimes.clear();
   // These are "gears," for wheel factorization (with a "wheel" already in place up to 11).
   std::vector<boost::dynamic_bitset<size_t>> inc_seqs = wheel_gen(std::vector<uint16_t>(gearFactorizationPrimes.begin(), gearFactorizationPrimes.end()));
   // We're done with the lowest primes.
@@ -2881,20 +2889,18 @@ std::string find_a_factor(const std::string &toFactorStr, const bool &isConOfSqr
   inc_seqs.erase(inc_seqs.begin(), inc_seqs.end() - wgDiff);
   gearFactorizationPrimes.clear();
 
-  // Ratio of biggest vs. smallest wheel, for periodicity
-  const size_t wheelRatio = biggestWheel / (size_t)SMALLEST_WHEEL;
   // Range per parallel node
-  const BigInteger nodeRange = (((backward(SMALLEST_WHEEL)(fullMaxBase) + nodeCount - 1U) / nodeCount) + wheelRatio - 1U) / wheelRatio;
+  const BigInteger nodeRange = (((backward(SMALLEST_WHEEL)(fullMaxBase) + nodeCount - 1U) / nodeCount) + wheelEntryCount - 1U) / wheelEntryCount;
   // Same collection across all threads
   std::map<BigInteger, boost::dynamic_bitset<size_t>> smoothNumberMap;
   // This manages the work per thread
-  Factorizer worker(toFactor * toFactor, toFactor, fullMaxBase, nodeRange, nodeId, wheelRatio, 1ULL << 14U, primes, forward(SMALLEST_WHEEL));
+  Factorizer worker(toFactor * toFactor, toFactor, fullMaxBase, nodeRange, nodeId, wheelEntryCount, 1ULL << 14U, primes, forward(SMALLEST_WHEEL));
 
   const auto workerFn = [&toFactor, &inc_seqs, &isConOfSqr, &worker, &smoothNumberMap] {
     // inc_seq needs to be independent per thread.
     std::vector<boost::dynamic_bitset<size_t>> inc_seqs_clone;
     inc_seqs_clone.reserve(inc_seqs.size());
-    for (const auto &b : inc_seqs) {
+    for (const boost::dynamic_bitset<size_t> &b : inc_seqs) {
       inc_seqs_clone.emplace_back(b);
     }
 
@@ -2918,7 +2924,7 @@ std::string find_a_factor(const std::string &toFactorStr, const bool &isConOfSqr
     futures.push_back(std::async(std::launch::async, workerFn));
   }
 
-  for (unsigned cpu = 0U; cpu < cpuCount; ++cpu) {
+  for (unsigned cpu = 0U; cpu < futures.size(); ++cpu) {
     const BigInteger r = futures[cpu].get();
     if ((r > result) && (r != toFactor)) {
       result = r;
