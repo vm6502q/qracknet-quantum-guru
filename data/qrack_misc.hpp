@@ -2595,7 +2595,6 @@ boost::dynamic_bitset<size_t> factorizationVector(BigInteger num, const std::vec
 
 struct Factorizer {
   std::mutex batchMutex;
-  std::mutex smoothNumberMapMutex;
   std::default_random_engine rng;
   BigInteger toFactorSqr;
   BigInteger toFactor;
