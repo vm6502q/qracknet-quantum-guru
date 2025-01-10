@@ -764,17 +764,15 @@ struct Factorizer {
   bool isIncomplete;
   std::vector<uint16_t> primes;
   ForwardFn forwardFn;
-  std::set<BigInteger> smoothNumberKeySet;
   std::vector<BigInteger> smoothNumberKeys;
   std::vector<boost::dynamic_bitset<size_t>> smoothNumberValues;
 
   Factorizer(const BigInteger &tfsqr, const BigInteger &tf, const BigInteger &tfsqrt, const BigInteger &range, size_t nodeCount, size_t nodeId, size_t w, size_t spl,
              const std::vector<uint16_t> &p, ForwardFn fn)
     : rng({}), toFactorSqr(tfsqr), toFactor(tf), toFactorSqrt(tfsqrt), batchRange(range), batchNumber(0U), batchOffset(nodeId * range), batchTotal(nodeCount * range),
-    wheelEntryCount(w), smoothPartsLimit(spl), rowOffset(primes.size()), isIncomplete(true), primes(p), forwardFn(fn)
+    wheelEntryCount(w), smoothPartsLimit(spl), rowOffset(p.size()), isIncomplete(true), primes(p), forwardFn(fn)
   {
     for (size_t i = 0U; i < primes.size(); ++i) {
-      smoothNumberKeySet.insert(primes[i]);
       smoothNumberKeys.push_back(primes[i]);
       smoothNumberValues.emplace_back(primes.size(), false);
       smoothNumberValues.back()[i] = true;
@@ -877,12 +875,8 @@ struct Factorizer {
       }
       if (true) {
         std::lock_guard<std::mutex> lock(smoothNumberMapMutex);
-        auto it = smoothNumberKeySet.find(smoothNumber);
-        if (it == smoothNumberKeySet.end()) {
-          smoothNumberValues.emplace_back(fv);
-          smoothNumberKeys.push_back(smoothNumber);
-          smoothNumberKeySet.insert(smoothNumber);
-        }
+        smoothNumberValues.emplace_back(fv);
+        smoothNumberKeys.push_back(smoothNumber);
       }
       // Reset "smoothNumber" and its factorization vector.
       smoothNumber = 1U;
