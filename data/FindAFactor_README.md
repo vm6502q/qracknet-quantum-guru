@@ -21,37 +21,35 @@ Windows users might find Windows Subsystem Linux (WSL) to be the easier and pref
 ## Usage
 
 ```py
-from FindAFactor import find_a_factor
+from FindAFactor import find_a_factor, FactoringMethod
 
 to_factor = 1000
 
 factor = find_a_factor(
     to_factor,
-    use_congruence_of_squares=False,
-    use_gaussian_elimination=False,
+    method=FactoringMethod.PRIME_SOLVER,
     node_count=1, node_id=0,
-    trial_division_level=16777216,
+    trial_division_level=2**20,
     gear_factorization_level=11,
-    wheel_factorization_level=7,
-    smoothness_bound_multiplier=1.0,
-    batch_size_multiplier=64.0
+    wheel_factorization_level=11,
+    smoothness_bound_multiplier=0.25,
+    batch_size_multiplier=8.0
 )
 ```
 
 The `find_a_factor()` function should return any nontrivial factor of `to_factor` (that is, any factor besides `1` or `to_factor`) if it exists. If a nontrivial factor does _not_ exist (i.e., the number to factor is prime), the function will return `1` or the original `to_factor`.
 
-- `use_congruence_of_squares` (default value: `False`): This attempts to check congruence of squares with "smooth" numbers, if `true`.
-- `use_gaussian_elimination` (default value: `False`): This option is only relevant if `use_congruence_of_squares=True`. In that case, if `use_gaussian_elimination` is `True`, then proper Gaussian elimination is used, with **O(N^3)** worst case complexity but using potentially much smaller "N" count of rows. If the option is `False`, rather than Gaussian elimination, the algorithm checks only for exact factorization parity duplicates in the "smooth" number rows, for **O(N^2)** worst case complexity, but using a potentially much larger "N" count of rows.
+- `method` (default value: `PRIME_SOLVER`/`0`): `PRIME_SOLVER`/`0` will prove that a number is prime (by failing to find any factors with wheel and gear factorization). `FACTOR_SOLVER`/`2` is optimized for the assumption that the number has at least two nontrivial factors. (`FACTOR_SOLVER`/`2` is not yet implemented, but this is the next development goal.) `MIXED`/`1` will be able to demonstrate that a number is prime, if necessary, while imitating some of the optimized behavior of `FACTOR_SOLVER`/`2`.
 - `node_count` (default value: `1`): `FindAFactor` can perform factorization in a _distributed_ manner, across nodes, without network communication! When `node_count` is set higher than `1`, the search space for factors is segmented equally per node. If the number to factor is semiprime, and brute-force search is used instead of congruence of squares, for example, all nodes except the one that happens to contain the (unknown) prime factor less than the square root of `to_factor` will ultimately return `1`, while one node will find and return this factor. For best performance, every node involved in factorization should have roughly the same CPU throughput capacity.
 - `node_id` (default value: `0`): This is the identifier of this node, when performing distributed factorization with `node_count` higher than `1`. `node_id` values start at `0` and go as high as `(node_count - 1)`.
-- `trial_division_level` (default value: `16777216`): Trial division is carried out as a preliminary round for all primes up this number. If you need more primes for your smoothness bound, increase this level.
+- `trial_division_level` (default value: `2**20`): Trial division is carried out as a preliminary round for all primes up this number. If you need more primes for your smoothness bound, increase this level.
 - `gear_factorization_level` (default value: `11`): This is the value up to which "wheel (and gear) factorization" and trial division are used to check factors and optimize "brute force," in general. The default value of `11` includes all prime factors of `11` and below and works well in general, though significantly higher might be preferred in certain cases.
-- `wheel_factorization_level` (default value: `7`): "Wheel" vs. "gear" factorization balances two types of factorization wheel ("wheel" vs. "gear" design) that often work best when the "wheel" is only a few prime number levels lower than gear factorization. Optimized implementation for wheels is only available up to `13`. The primes above "wheel" level, up to "gear" level, are the primes used specifically for "gear" factorization.
-- `smoothness_bound_multiplier` (default value: `1.0`): starting with the first prime number after wheel factorization, the congruence of squares approach (with Quadratic Sieve) takes a default "smoothness bound" with as many distinct prime numbers as bits in the number to factor (for default argument of `1.0` multiplier). To increase or decrease this number, consider it multiplied by the value of `smoothness_bound_multiplier`.
-- `batch_size_multiplier` (default value: `64.0`): Each `1.0` increment of the multiplier is 2 cycles of gear and wheel factorization, alternating every other cycle between bottom of guessing range and top of guessing range, for every thread in use.
+- `wheel_factorization_level` (default value: `11`): "Wheel" vs. "gear" factorization balances two types of factorization wheel ("wheel" vs. "gear" design) that often work best when the "wheel" is only a few prime number levels lower than gear factorization. Optimized implementation for wheels is only available up to `13`. The primes above "wheel" level, up to "gear" level, are the primes used specifically for "gear" factorization.
+- `smoothness_bound_multiplier` (default value: `0.25`): starting with the first prime number after wheel factorization, the congruence of squares approach (with Quadratic Sieve) has a "smoothness bound" unit with as many distinct prime numbers as bits in the number to facto0r (for argument of `1.0` multiplier). To increase or decrease this number, consider it multiplied by the value of `smoothness_bound_multiplier`.
+- `batch_size_multiplier` (default value: `8.0`): Each `1.0` increment of the multiplier is 2 cycles of gear and wheel factorization, alternating every other cycle between bottom of guessing range and top of guessing range, for every thread in use.
 
 All variables defaults can also be controlled by environment variables:
-- `FINDAFACTOR_USE_CONGRUENCE_OF_SQUARES` (any value makes `True`, while default is `False`)
+- `FINDAFACTOR_METHOD` (integer value)
 - `FINDAFACTOR_NODE_COUNT`
 - `FINDAFACTOR_NODE_ID`
 - `FINDAFACTOR_TRIAL_DIVISION_LEVEL`
