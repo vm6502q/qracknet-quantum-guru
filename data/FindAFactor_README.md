@@ -32,21 +32,24 @@ factor = find_a_factor(
     trial_division_level=2**20,
     gear_factorization_level=11,
     wheel_factorization_level=11,
-    smoothness_bound_multiplier=0.25,
-    batch_size_multiplier=8.0
+    smoothness_bound_multiplier=1.0,
+    batch_size_multiplier=512.0,
+    ladder_multiple=4
 )
 ```
 
 The `find_a_factor()` function should return any nontrivial factor of `to_factor` (that is, any factor besides `1` or `to_factor`) if it exists. If a nontrivial factor does _not_ exist (i.e., the number to factor is prime), the function will return `1` or the original `to_factor`.
 
-- `method` (default value: `PRIME_SOLVER`/`0`): `PRIME_SOLVER`/`0` will prove that a number is prime (by failing to find any factors with wheel and gear factorization). `FACTOR_FINDER`/`2` is optimized for the assumption that the number has at least two nontrivial factors. `MIXED`/`1` is a factor-solver that is able to demonstrate that a number is prime, if necessary.
+- `method` (default value: `PRIME_SOLVER`/`0`): `PRIME_SOLVER`/`0` will prove that a number is prime (by failing to find any factors with wheel and gear factorization). `FACTOR_FINDER`/`1` is optimized for the assumption that the number has at least two nontrivial factors.
 - `node_count` (default value: `1`): `FindAFactor` can perform factorization in a _distributed_ manner, across nodes, without network communication! When `node_count` is set higher than `1`, the search space for factors is segmented equally per node. If the number to factor is semiprime, and brute-force search is used instead of congruence of squares, for example, all nodes except the one that happens to contain the (unknown) prime factor less than the square root of `to_factor` will ultimately return `1`, while one node will find and return this factor. For best performance, every node involved in factorization should have roughly the same CPU throughput capacity.
 - `node_id` (default value: `0`): This is the identifier of this node, when performing distributed factorization with `node_count` higher than `1`. `node_id` values start at `0` and go as high as `(node_count - 1)`.
 - `trial_division_level` (default value: `2**20`): Trial division is carried out as a preliminary round for all primes up this number. If you need more primes for your smoothness bound, increase this level.
 - `gear_factorization_level` (default value: `11`): This is the value up to which "wheel (and gear) factorization" and trial division are used to check factors and optimize "brute force," in general. The default value of `11` includes all prime factors of `11` and below and works well in general, though significantly higher might be preferred in certain cases.
 - `wheel_factorization_level` (default value: `11`): "Wheel" vs. "gear" factorization balances two types of factorization wheel ("wheel" vs. "gear" design) that often work best when the "wheel" is only a few prime number levels lower than gear factorization. Optimized implementation for wheels is only available up to `13`. The primes above "wheel" level, up to "gear" level, are the primes used specifically for "gear" factorization.
-- `smoothness_bound_multiplier` (default value: `0.25`): starting with the first prime number after wheel factorization, the congruence of squares approach (with Quadratic Sieve) has a "smoothness bound" unit with as many distinct prime numbers as bits in the number to facto0r (for argument of `1.0` multiplier). To increase or decrease this number, consider it multiplied by the value of `smoothness_bound_multiplier`.
-- `batch_size_multiplier` (default value: `8.0`): Each `1.0` increment of the multiplier is 2 cycles of gear and wheel factorization, alternating every other cycle between bottom of guessing range and top of guessing range, for every thread in use.
+- `smoothness_bound_multiplier` (default value: `1.0`): starting with the first prime number after wheel factorization, the congruence of squares approach (with Quadratic Sieve) has a "smoothness bound" unit with as many distinct prime numbers as bits in the number to factor (for argument of `1.0` multiplier). To increase or decrease this number, consider it multiplied by the value of `smoothness_bound_multiplier`.
+- `batch_size_multiplier` (default value: `512.0`): For `FACTOR_FINDER`/`1` method, each `1.0` increment of the multiplier adds `k ln k` Markov mixing replacement steps for `k` count of smooth primes, before reseeding Monte Carlo.
+- `batch_size_variance` (default value: `4`): For `FACTOR_FINDER`/`1` method, `k ln k` is the right proportionality for a Markov mixing process, but a linear factor in front is hard to predict. As such, it can be useful to dynamically vary the batch size, as if to cover and amortize the cost of several different batch sizes at once. In sequence, each batch size will be multiplied by `2 ** i` for `i` in `range(batch_size_variance)`, repeating from `0`.
+- `ladder_multiple` (default value: `4`): Controls how many times randomly-selected square prime multiplication is repeated with the same square prime per random selection, in ascending a "ladder" of smooth perfect squares. (Any smooth perfect square can be multiplied by any square prime in the factor base, or any other smooth perfect square, and produce a different smooth perfect square.)
 
 All variables defaults can also be controlled by environment variables:
 - `FINDAFACTOR_METHOD` (integer value)
@@ -57,18 +60,7 @@ All variables defaults can also be controlled by environment variables:
 - `FINDAFACTOR_WHEEL_FACTORIZATION_LEVEL`
 - `FINDAFACTOR_SMOOTHNESS_BOUND_MULTIPLIER`
 - `FINDAFACTOR_BATCH_SIZE_MULTIPLIER`
-
-## Factoring parameter strategy
-
-The developer anticipates this single-function set of parameters, as API, is the absolutely most complicated FindAFactor likely ever needs to get. The _only_ required argument is `to_factor`, and it _just works,_ for any number that should reasonably take about less than a second to a few minutes. However, if you're running larger numbers for longer than that, of course, it's worth investing 15 to 30 minutes to read the explanation above in the `README` of every argument and play with the settings, a little. But, with these options, you have _total control to tune_ the algorithm in any all ways necessary to adapt to system resource footprint.
-
-Advantage for `use_congruence_of_squares` is beyond the hardware scale of the developer's experiments, in practicality, but it can be shown to work correctly (at disadvantage, at small factoring bit-width scales). The anticipated use case is to turn this option on when approaching the size of modern-day RSA semiprimes in use.
-
-If this is your use case, you want to specifically consider `smoothness_bound_multiplier`, `batch_size_multiplier`, and potentially `thread_count` for managing memory. By default, as many primes are kept for "smooth" number sieving as bits in the number to factor. This is multiplied by `smooth_bound_multiplier` (and cast to a discrete number of primes in total). This multiplier tends to predominate memory, but `batch_size_multiplier` can also cause problems if set too high or low, as a high value might exhaust memory, while a low value increases potentially nonproductive Gaussian elimination checks, which might be more efficient if batched higher. Our expectation is that most systems will benefit from significant experimentation with and fine tuning of `batch_size_multiplier` to something other than default, potentially to the point of using about half of available memory.
-
-`wheel_factorization_level` and `gear_factorization_level` are common to both `use_congruence_of_squares` (i.e., Gaussian elimination for perfect squares) and "brute force." `11` for gear and `5` for wheel limit works well for small numbers. You'll definitely want to consider (gear/wheel) `13`/`7` or `17`/`11` (or even other values, maybe system-dependent) as your numbers to factor approach cryptographic relevance.
-
-As for `node_count` and `node_id`, believe it or not, factoring parallelism can truly be that simple: just run different node IDs in the set on different (roughly homogenous) isolated CPUs, without networking. The only caveat is that you must manually detect when any single node has found an answer (which is trivial to verify) and manually interrupt other nodes still working (or leave them to complete on their own).
+- `FINDAFACTOR_BATCH_SIZE_VARIANCE`
 
 ## About 
 This library was originally called ["Qimcifa"](https://github.com/vm6502q/qimcifa) and demonstrated a (Shor's-like) "quantum-inspired" algorithm for integer factoring. It has since been developed into a general factoring algorithm and tool.
