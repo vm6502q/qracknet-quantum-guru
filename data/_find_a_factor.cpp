@@ -38,6 +38,7 @@
 // See LICENSE.md in the project root or
 // https://www.gnu.org/licenses/lgpl-3.0.en.html for details.
 
+#include "common/config.h"
 #include "dispatchqueue.hpp"
 
 #include <algorithm>
@@ -52,6 +53,8 @@
 
 #include <boost/dynamic_bitset.hpp>
 #include <boost/multiprecision/cpp_int.hpp>
+#include <boost/random.hpp>
+#include <boost/random/uniform_smallint.hpp>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -59,6 +62,12 @@
 namespace Qimcifa {
 
 typedef boost::multiprecision::cpp_int BigInteger;
+
+#if USE_MT_RNG
+typedef std::mt19937 rngType;
+#else
+typedef boost::random::taus88 rngType;
+#endif
 
 const unsigned CpuCount = std::thread::hardware_concurrency();
 DispatchQueue dispatch(CpuCount);
@@ -744,7 +753,7 @@ inline BigInteger modExp(BigInteger base, BigInteger exp, const BigInteger &mod)
 
 struct Factorizer {
   std::mutex batchMutex;
-  std::uniform_int_distribution<size_t> dis;
+  boost::uniform_smallint<size_t> dis;
   std::uniform_int_distribution<size_t> wordDis;
   BigInteger toFactorSqr;
   BigInteger toFactor;
@@ -764,8 +773,8 @@ struct Factorizer {
   ForwardFn forwardFn;
 
   Factorizer(const BigInteger &tfsqr, const BigInteger &tf, const BigInteger &tfsqrt, const BigInteger &range, size_t nodeCount, size_t nodeId, size_t w, size_t spl, size_t bsv,
-             size_t lm, const std::vector<size_t> &p, ForwardFn fn)
-    : dis(0U, p.size() - 1U), wordDis(0ULL, -1ULL), toFactorSqr(tfsqr), toFactor(tf), toFactorSqrt(tfsqrt), batchRange(range), batchNumber(0U), batchOffset(nodeId * range),
+             size_t lm, size_t bn, const std::vector<size_t> &p, ForwardFn fn)
+    : dis(0U, p.size() - 1U), wordDis(0ULL, -1ULL), toFactorSqr(tfsqr), toFactor(tf), toFactorSqrt(tfsqrt), batchRange(range), batchNumber(bn), batchOffset(nodeId * range),
     batchTotal(nodeCount * range), wheelRadius(1U), wheelEntryCount(w), smoothBatchLimit(spl), batchSizeVariance(bsv), ladderMultiple(lm), isIncomplete(true), primes(p), forwardFn(fn)
   {
     for (size_t i = 0U; i < primes.size(); ++i) {
@@ -805,7 +814,7 @@ struct Factorizer {
     return 1U;
   }
 
-  BigInteger monteCarlo(std::mt19937_64& gen) {
+  BigInteger monteCarlo(rngType& gen) {
     // This function enters only once per thread.
     size_t batchPower = 0U;
 
@@ -1108,18 +1117,20 @@ std::string find_a_factor(std::string toFactorStr, size_t method, size_t nodeCou
   gearFactorizationPrimes.clear();
 
   // Range per parallel node
-  const BigInteger nodeRange = (((backward(SMALLEST_WHEEL)(fullMaxBase) + nodeCount - 1U) / nodeCount) + wheelEntryCount - 1U) / wheelEntryCount;
+  const auto backwardFn = backward(SMALLEST_WHEEL);
+  const BigInteger nodeRange = (((backwardFn(fullMaxBase) + nodeCount - 1U) / nodeCount) + wheelEntryCount - 1U) / wheelEntryCount;
+  const size_t batchStart = ((size_t)backwardFn(trialDivisionLevel)) / wheelEntryCount;
   // This manages the work of all threads.
   Factorizer worker(toFactor * toFactor, toFactor, fullMaxBase,
                     nodeRange, nodeCount, nodeId,
                     wheelEntryCount, (size_t)(batchSizeMultiplier * smoothPrimes.size() * log(smoothPrimes.size())), batchSizeVariance,
-                    ladderMultiple, smoothPrimes, forward(SMALLEST_WHEEL));
+                    ladderMultiple, batchStart, smoothPrimes, forward(SMALLEST_WHEEL));
   // Square of count of smooth primes, for FACTOR_FINDER batch multiplier base unit, was suggested by Lyra (OpenAI GPT)
 
   std::vector<std::future<BigInteger>> futures;
   futures.reserve(CpuCount);
 
-  std::vector<std::mt19937_64> gen;
+  std::vector<rngType> gen;
   if (isFactorFinder) {
     std::default_random_engine rng{};
     gen.reserve(CpuCount);
