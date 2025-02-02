@@ -785,6 +785,16 @@ struct Factorizer {
     }
   }
 
+  BigInteger getNextBatch() {
+    std::lock_guard<std::mutex> lock(batchMutex);
+
+    if (batchNumber >= batchRange) {
+      isIncomplete = false;
+    }
+
+    return batchOffset + batchNumber++;
+  }
+
   BigInteger getNextAltBatch() {
     std::lock_guard<std::mutex> lock(batchMutex);
 
@@ -820,7 +830,7 @@ struct Factorizer {
 
   // Sieving function
   BigInteger sievePolynomials(std::vector<boost::dynamic_bitset<size_t>> *inc_seqs) {
-    for (BigInteger batchNum = getNextAltBatch(); isIncomplete; batchNum = getNextAltBatch()) {
+    for (BigInteger batchNum = getNextBatch(); isIncomplete; batchNum = getNextBatch()) {
       // NOTE: If you want to add gear factorization back in, realize that these bounds
       // do not yet properly align to exact wheel boundaries, for full repetitions.
       // (They cycle through every validate candidate, but potentially with an offset.)
@@ -846,14 +856,18 @@ struct Factorizer {
         if (rfv.none()) {
           // x^2 % toFactor = y^2
           const BigInteger y = sqrt(ySqr);
+
+          // Check x + y
           BigInteger factor = gcd(toFactor, x + y);
           if ((factor > 1U) && (factor < toFactor)) {
             isIncomplete = false;
 
             return factor;
           }
+
+          // Avoid division by 0
           if (x != y) {
-            // Avoid division by 0
+            // Check x - y
             factor = gcd(toFactor, x - y);
             if ((factor > 1U) && (factor < toFactor)) {
               isIncomplete = false;
@@ -883,15 +897,19 @@ struct Factorizer {
           // x^2 % toFactor = y^2
           const BigInteger _x = x * smoothNumberKeys[std::distance(smoothNumberValues.begin(), snvIt)];
           const BigInteger y = sqrt((_x * _x) % toFactor);
+
+          // Check x + y
           BigInteger factor = gcd(toFactor, _x + y);
           if ((factor > 1U) && (factor < toFactor)) {
             isIncomplete = false;
 
             return factor;
           }
+
+          // Avoid division by 0
           if (_x != y) {
-            // Avoid division by 0
-            factor = gcd(toFactor, x - y);
+            // Check x - y
+            factor = gcd(toFactor, _x - y);
             if ((factor > 1U) && (factor < toFactor)) {
               isIncomplete = false;
 
@@ -931,7 +949,7 @@ struct Factorizer {
 
       // Ensure the dependency is valid (all exponents must sum to even parity)
       if (solutionRow.none()) {
-          solutions.push_back(selectedRows);
+        solutions.push_back(selectedRows);
       }
     }
 
@@ -1016,15 +1034,20 @@ struct Factorizer {
       x *= smoothNumberKeys[idx];
     }
     const BigInteger y = sqrt((x * x) % toFactor);
+
+    // Check x + y
     BigInteger factor = gcd(toFactor, x + y);
     if ((factor > 1U) && (factor < toFactor)) {
       return factor;
     }
-    if (x == y) {
-      // Avoid division by 0
-      return 1U;
+
+    // Avoid division by 0
+    if (x != y) {
+      // Check x - y
+      return gcd(toFactor, x - y);
     }
-    return gcd(toFactor, x - y);
+
+    return 1U;
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1186,14 +1209,19 @@ std::string find_a_factor(std::string toFactorStr, size_t method, size_t nodeCou
     }
   }
   // From 1, this is a period for wheel factorization
-  // This is defined globally:
-  // size_t biggestWheel = 1ULL;
+  BigInteger biggestWheelBigInt = 1U;
   for (const size_t &wp : gearFactorizationPrimes) {
-    biggestWheel *= (size_t)wp;
+    biggestWheelBigInt *= (size_t)wp;
   }
+  // This is defined globally:
+  biggestWheel = (size_t)biggestWheelBigInt;
+  if (((BigInteger)biggestWheel) != biggestWheelBigInt) {
+    throw std::runtime_error("Wheel is too big! Turn down wheel and/or gear factorization level. (Max is less than 2^64, while calculated wheel has radius" + boost::lexical_cast<std::string>(biggestWheelBigInt) + ".)");
+  }
+
   // Wheel entry count per largest "gear" scales our brute-force range.
   // This is defined globally:
-  // std::vector<size_t> wheel;
+  wheel.clear();
   for (size_t i = 1U; i <= biggestWheel; ++i) {
     if (!isMultiple(i, gearFactorizationPrimes)) {
       wheel.push_back(i);
@@ -1217,31 +1245,31 @@ std::string find_a_factor(std::string toFactorStr, size_t method, size_t nodeCou
   inc_seqs.erase(inc_seqs.begin(), inc_seqs.end() - wgDiff);
   gearFactorizationPrimes.clear();
 
-  // Range per parallel node
-  const auto backwardFn = backward(SMALLEST_WHEEL);
-  const BigInteger nodeRange = (((backwardFn(sqrtN) + batchItemCount - 1U) / batchItemCount) + nodeCount - 1U) / nodeCount;
-  const size_t batchStart = ((size_t)backwardFn(primeCeiling)) / batchItemCount;
-  const size_t rowLimit = smoothPrimes.size() + gaussianEliminationRowOffset;
+  // For PRIME_PROVER method
+  const auto ppBackwardFn = backward(SMALLEST_WHEEL);
+  const auto ppForwardFn = forward(SMALLEST_WHEEL);
+  const BigInteger ppNodeRange = (((ppBackwardFn(sqrtN) + batchItemCount - 1U) / batchItemCount) + nodeCount - 1U) / nodeCount;
+  const size_t ppStartingBatch = ((size_t)ppBackwardFn(primeCeiling)) / batchItemCount;
 
-  // For FACTOR_FINDER method
+  // For FACTOR_FINDER method (Quadratic Sieve)
+  const size_t rowLimit = smoothPrimes.size() + gaussianEliminationRowOffset;
   BigInteger qsBackwardLowBound = smoothBackwardFn(sqrtN + 1U);
   if (smoothForwardFn(qsBackwardLowBound) < (sqrtN + 1U)) {
     ++qsBackwardLowBound;
   }
-  const BigInteger sievingNodeRange =((((smoothBackwardFn(sqrtN + (BigInteger)((toFactor - sqrtN).convert_to<double>() * sievingBoundMultiplier + 0.5)) - qsBackwardLowBound)
+  const BigInteger qsNodeRange =((((smoothBackwardFn(sqrtN + (BigInteger)((toFactor - sqrtN).convert_to<double>() * sievingBoundMultiplier + 0.5)) - qsBackwardLowBound)
                                       + batchItemCount - 1U) / batchItemCount) + nodeCount - 1U) / nodeCount;
-  const BigInteger nodeOffset = nodeId * sievingNodeRange;
 
   // This manages the work of all threads.
   Factorizer worker(toFactor, sqrtN, qsBackwardLowBound,
-                    isFactorFinder ? sievingNodeRange : nodeRange,
+                    isFactorFinder ? qsNodeRange : ppNodeRange,
                     nodeCount, nodeId,
                     batchItemCount,
                     rowLimit,
-                    isFactorFinder ? 0U : batchStart,
+                    isFactorFinder ? 0U : ppStartingBatch,
                     smoothPrimes,
-                    isFactorFinder ? ((wheel.size() > 1U) ? smoothForwardFn : forward(WHEEL1)) : forward(SMALLEST_WHEEL),
-                    isFactorFinder ? ((wheel.size() > 1U) ? smoothBackwardFn : backward(WHEEL1)) : backwardFn);
+                    isFactorFinder ? ((wheel.size() > 1U) ? smoothForwardFn : forward(WHEEL1)) : ppForwardFn,
+                    isFactorFinder ? ((wheel.size() > 1U) ? smoothBackwardFn : backward(WHEEL1)) : ppBackwardFn);
   // Square of count of smooth primes, for FACTOR_FINDER batch multiplier base unit, was suggested by Lyra (OpenAI GPT)
 
   std::vector<std::future<BigInteger>> futures;
