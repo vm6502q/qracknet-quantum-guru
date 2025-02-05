@@ -19,6 +19,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <numeric>
 #include <stdlib.h>
 #include <string>
 
@@ -643,6 +644,14 @@ struct Factorizer {
       x *= smoothNumberKeys[idx];
     }
     const BigInteger y = sqrt((x * x) % toFactor);
+    // The WHOLE point of EVERYTHING we've done
+    // is to guarantee this condition NEVER throws.
+    // If we're finding solutions with the right
+    // frequency as a function of rows saved,
+    // we've correctly executed Quadratic Sieve.
+    if ((y * y) != ((x * x) % toFactor)) {
+      throw std::runtime_error("Quadratic Sieve math is not self-consistent!");
+    }
 
     // Check x + y
     BigInteger factor = gcd(toFactor, x + y);
@@ -685,6 +694,8 @@ struct Factorizer {
   // Compute the prime factorization modulo 2
   boost::dynamic_bitset<size_t> factorizationParityVector(BigInteger num) {
     boost::dynamic_bitset<size_t> vec(smoothPrimes.size(), 0U);
+    std::vector<size_t> spids(smoothPrimes.size());
+    std::iota(spids.begin(), spids.end(), 0);
     while (true) {
       // Proceed in steps of the GCD with the smooth prime wheel radius.
       BigInteger factor = gcd(num, smoothWheelRadius);
@@ -694,15 +705,21 @@ struct Factorizer {
       num /= factor;
       // Remove smooth primes from factor.
       // (The GCD is necessarily smooth.)
-      for (size_t pi = 0U; pi < smoothPrimes.size(); ++pi) {
-        const size_t& p = smoothPrimes[pi];
+      for (size_t pi = spids.size() - 1U; ; --pi) {
+        const size_t& pid = spids[pi];
+        const size_t& p = smoothPrimes[pid];
         if (factor % p) {
+          // Once a preamble factor is found not to be present,
+          // there's no longer use trying for it on the next iteration.
+          spids.erase(spids.begin() + pi);
           continue;
         }
         factor /= p;
-        vec.flip(pi);
+        vec.flip(pid);
         if (factor == 1U) {
           // The step is fully factored.
+          // (This case is always reached.)
+          spids.erase(spids.begin(), spids.begin() + pi);
           break;
         }
       }
