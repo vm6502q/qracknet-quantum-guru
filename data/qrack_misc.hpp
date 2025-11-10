@@ -1504,7 +1504,8 @@ bool QInterface::TryDecompose(bitLenInt start, QInterfacePtr dest, real1_f error
  * Minimally decompose a set of contigious bits from the separable unit. The
  * length of this separable unit is reduced by the length of bits decomposed, and
  * the bits removed are output in the destination QEngineCPU pointer. The
- * destination object must be initialized to the correct number of bits.
+ * destination object must be initialized to the correct number of bits, in 0
+ * permutation state.
  */
 void QEngineCPU::DecomposeDispose(bitLenInt start, bitLenInt length, QEngineCPUPtr destination)
 {
@@ -1523,6 +1524,7 @@ void QEngineCPU::DecomposeDispose(bitLenInt start, bitLenInt length, QEngineCPUP
         if (destination) {
             destination->ZeroAmplitudes();
         }
+
         return;
     }
 
@@ -1530,10 +1532,9 @@ void QEngineCPU::DecomposeDispose(bitLenInt start, bitLenInt length, QEngineCPUP
         if (destination) {
             destination->stateVec = stateVec;
         }
-        stateVec = NULL;
-        SetQubitCount(0U);
+        stateVec = nullptr;
 
-        return;
+        return SetQubitCount(0U);
     }
 
     if (destination && !destination->stateVec) {
@@ -1636,9 +1637,8 @@ void QEngineCPU::DecomposeDispose(bitLenInt start, bitLenInt length, QEngineCPUP
         destination->Dump();
 
         par_for(0U, partPower, [&](const bitCapIntOcl& lcv, const unsigned& cpu) {
-            destination->stateVec->write(lcv,
-                (real1)(std::sqrt((real1_s)partStateProb[lcv])) *
-                    complex(cos(partStateAngle[lcv]), sin(partStateAngle[lcv])));
+            destination->stateVec->write(
+                lcv, std::polar((real1)std::sqrt((real1_s)partStateProb[lcv]), partStateAngle[lcv]));
         });
 
         partStateProb.reset();
@@ -1650,9 +1650,7 @@ void QEngineCPU::DecomposeDispose(bitLenInt start, bitLenInt length, QEngineCPUP
     ResetStateVec(AllocStateVec(maxQPowerOcl));
 
     par_for(0U, remainderPower, [&](const bitCapIntOcl& lcv, const unsigned& cpu) {
-        stateVec->write(lcv,
-            (real1)(std::sqrt((real1_s)remainderStateProb[lcv])) *
-                complex(cos(remainderStateAngle[lcv]), sin(remainderStateAngle[lcv])));
+        stateVec->write(lcv, std::polar((real1)std::sqrt((real1_s)remainderStateProb[lcv]), remainderStateAngle[lcv]));
     });
 }
 
